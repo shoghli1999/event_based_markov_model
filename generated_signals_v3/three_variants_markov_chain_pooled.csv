@@ -1,0 +1,10 @@
+state,next_state,transition_count,transition_probability
+Clear Invoice,END,81084,1.0
+Create Purchase Order Item,Record Goods Receipt,43012,0.46101738515295076
+Create Purchase Order Item,Vendor creates invoice,50286,0.5389826148470492
+Record Goods Receipt,END,12214,0.13091384595596905
+Record Goods Receipt,Record Invoice Receipt,50286,0.5389826148470492
+Record Goods Receipt,Vendor creates invoice,30798,0.3301035391969817
+Record Invoice Receipt,Clear Invoice,81084,1.0
+Vendor creates invoice,Record Goods Receipt,50286,0.6201716738197425
+Vendor creates invoice,Record Invoice Receipt,30798,0.3798283261802575

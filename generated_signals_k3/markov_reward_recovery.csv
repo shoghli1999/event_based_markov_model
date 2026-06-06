@@ -1,0 +1,6 @@
+state,true_energy,markov_recovered,abs_error
+Clear Invoice,57.799395,57.799332,6.3e-05
+Create Purchase Order Item,99.799395,99.798681,0.000714
+Record Goods Receipt,100.800104,100.800566,0.000462
+Record Invoice Receipt,98.800481,98.800783,0.000302
+Vendor creates invoice,55.799633,55.799106,0.000527

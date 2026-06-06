@@ -1,0 +1,6 @@
+chain,case_count,start_state,expected_energy_per_case
+variant_1,50286,Create Purchase Order Item,412.9985
+variant_2,30798,Create Purchase Order Item,412.9985
+variant_3,12214,Create Purchase Order Item,200.5992
+POOLED (from probabilities),93298,Create Purchase Order Item,385.1925
+WEIGHTED_AVG (variant check),93298,—,385.1925

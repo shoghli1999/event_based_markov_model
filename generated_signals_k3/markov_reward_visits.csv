@@ -1,0 +1,6 @@
+state,expected_visits_per_case
+Clear Invoice,0.8691
+Create Purchase Order Item,1.0
+Record Goods Receipt,1.0
+Record Invoice Receipt,0.8691
+Vendor creates invoice,0.8691
