@@ -1,0 +1,2 @@
+noise_std,chosen_K,reg_max_err,hmm_max_err,gmm_max_err,hmm_state_acc,pos_state_acc,gmm_state_acc
+1.0,7,0.08166974777580549,0.0733819933678177,0.6536795550015881,0.9975,0.8466666666666667,0.6891666666666667

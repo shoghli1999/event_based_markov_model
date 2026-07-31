@@ -1,0 +1,11 @@
+state,true_energy,Linear regression baseline (NNLS),Direct least squares (OLS),Coordinate descent (20 passes),setup
+Clear Invoice,57.799395,57.79946336291981,57.79946336291979,57.799463362919546,"ORACLE BASELINE  (true sine subtracted, no intercept)"
+Create Purchase Order Item,99.799395,99.79860868261694,99.79860868261687,99.79860868262492,"ORACLE BASELINE  (true sine subtracted, no intercept)"
+Record Goods Receipt,100.800104,100.80047340143047,100.80047340143064,100.80047340143113,"ORACLE BASELINE  (true sine subtracted, no intercept)"
+Record Invoice Receipt,98.800481,98.80109400394129,98.80109400394137,98.80109400393815,"ORACLE BASELINE  (true sine subtracted, no intercept)"
+Vendor creates invoice,55.799633,55.799085389515376,55.799085389515334,55.799085389515355,"ORACLE BASELINE  (true sine subtracted, no intercept)"
+Clear Invoice,57.799395,57.79949025961865,57.7994902596204,57.79949025939941,"CONSTANT BASELINE  (raw signal, single intercept)"
+Create Purchase Order Item,99.799395,99.77315208442856,99.77315208443054,99.77315208648864,"CONSTANT BASELINE  (raw signal, single intercept)"
+Record Goods Receipt,100.800104,100.79224526883088,100.79224526883164,100.79224527865766,"CONSTANT BASELINE  (raw signal, single intercept)"
+Record Invoice Receipt,98.800481,98.78520947056437,98.78520947056312,98.78520947266624,"CONSTANT BASELINE  (raw signal, single intercept)"
+Vendor creates invoice,55.799633,55.80232472860292,55.8023247286002,55.80232472923305,"CONSTANT BASELINE  (raw signal, single intercept)"
