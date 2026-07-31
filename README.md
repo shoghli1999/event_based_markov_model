@@ -14,7 +14,7 @@ Data: [BPI Challenge 2019](https://www.tf-pm.org/resources/bpi-challenge/bpi-cha
 
 ```bash
 cd thesis
-pip install pm4py pandas numpy matplotlib networkx
+pip install pm4py pandas numpy matplotlib networkx scikit-learn scipy
 
 python MarkovModel_clean.py      # default: top 3 variants → generated_signals_k3/
 python markov_reward.py          # reads those CSVs, adds reward-process outputs
@@ -35,7 +35,7 @@ Comparison experiments (see the section further down):
 ```bash
 python compare_optimizers.py       # coordinate descent vs gradient descent
 python regression_comparison.py    # linear regression baseline, ridge, time split
-python hmm_variants.py             # experiment 1 — HMM on variants 1+2
+python hmm_variants.py             # experiment 1 — HMM on variants 1+2+3
 python hmm_signal.py               # experiment 2 — Markov layer on the 30-min signal
 ```
 
@@ -108,8 +108,10 @@ Also writes reward-chain plots where nodes show E (energy) and n (expected visit
 
 ## comparison experiments
 
-These three read only the CSVs in `generated_signals_k{k}/`, so they run in
-seconds and never load the XES. Run `MarkovModel_clean.py` first.
+These four never load the XES: `compare_optimizers.py` and `regression_comparison.py`
+read only the CSVs in `generated_signals_k{k}/` and run in seconds; `hmm_variants.py`
+and `hmm_signal.py` simulate or read the same CSVs and take a few minutes. Run
+`MarkovModel_clean.py` first.
 
 ### `compare_optimizers.py`
 
@@ -264,10 +266,9 @@ constant. What switches is the background level `b_k` and the noise scale `σ_k`
 regression baseline: one constant intercept, one set of energies, least squares.
 So K=1 is the baseline, fitted by the same code on the same rows, and the Markov
 layer is a strict generalisation of it. Both see the same y, the same X, the same
-split. And
-because it works on intervals rather than traces, every variant in the event
-matrix takes part — the equal-length restriction of `hmm_variants.py` does not
-apply, so nothing is dropped.
+split. And because it works on intervals rather than traces, every variant in the
+event matrix takes part — the equal-length restriction of `hmm_variants.py` does
+not apply, so nothing is dropped.
 
 Split is chronological: 60% train, 10% validation, 30% test. Test numbers use
 one-step-ahead prediction, where ŷ_t is built from y_{<t} and X_t only.
@@ -340,8 +341,8 @@ Written by `MarkovModel_clean.py`. Reward files added by `markov_reward.py`.
 
 - `regression_comparison_metrics.csv` — per method: energy error, train/test R², test RMSE
 - `regression_comparison_energies.csv` — recovered energy per state, both setups
-- `hmm_variants12_comparison.csv` — HMM vs regression vs step number vs mixture
-- `hmm_variants1_comparison.csv` — same, variant 1 only
+- `hmm_variants123_comparison.csv` — HMM vs baseline vs step number vs mixture (default, variants 1+2+3)
+- `hmm_variants12_comparison.csv`, `hmm_variants1_comparison.csv` — same for the 1+2 and 1-only subsets
 - `hmm_signal_comparison.csv` — per K: test RMSE, energy error, regime sigmas
 - `hmm_signal_k_selection.csv` — validation log-likelihood and RMSE per K
 
