@@ -1,20 +1,46 @@
-# thesis/
+# Event-based Markov modelling of energy consumption
 
-Code for my event-based energy modelling experiments on the BPI Challenge 2019 log.
+Code for my Master's thesis experiments on the BPI Challenge 2019 event log:
+recovering per-activity energy costs from an aggregated consumption signal.
 
 The idea: take process variants from the log, treat each activity as a Markov state, hide made-up energy costs inside a synthetic signal, then try to recover those costs from the signal. On top of that, `markov_reward.py` uses the learned energies + transition probabilities to get expected energy per case.
 
-This folder is self-contained — it reads the XES file directly and writes everything locally. The rest of the repo (`signal_generator/`, `Event Log Manager/`) is older stuff from the project I built on.
+The repo is self-contained — the scripts read the XES log directly and write
+everything into `generated_signals*/` next to them. Two folders from the project
+I built on (`signal_generator/`, `Event Log Manager/`) are referenced in places
+below but are **not** part of this repository.
 
-Data: [BPI Challenge 2019](https://www.tf-pm.org/resources/bpi-challenge/bpi-challenge-2019) (purchase-to-pay).
+Data: [BPI Challenge 2019](https://www.tf-pm.org/resources/bpi-challenge/bpi-challenge-2019)
+(purchase-to-pay). The log is ~695 MB, over GitHub's file limit, so it is not
+committed — see [input](#input).
+
+---
+
+## the headline result, without running anything
+
+The main claim is that adding a Markov layer over the aggregated signal cuts
+one-step-ahead prediction error by 44% against the linear-regression baseline.
+That number is not just asserted here — it is in a committed output file:
+
+**[`generated_signals_k3/hmm_signal_comparison.csv`](generated_signals_k3/hmm_signal_comparison.csv)**
+
+```
+K=1  (lin.reg. baseline)   test_rmse_1step = 1.5657   energy_max_err = 0.02574
+K=6  (CHOSEN)              test_rmse_1step = 0.8743   energy_max_err = 0.00685
+```
+
+(1.5657 − 0.8743) / 1.5657 = **44.2%**, and 0.02574 / 0.00685 = **3.76x** on the
+worst per-state energy error. Every other results table below has a CSV beside it
+in the same folder. You do not need the 695 MB log to check any of them.
 
 ---
 
 ## how to run
 
+All scripts live at the repository root — there is no subfolder to change into.
+
 ```bash
-cd thesis
-pip install pm4py pandas numpy matplotlib networkx scikit-learn scipy
+pip install -r requirements.txt
 
 python MarkovModel_clean.py      # default: top 3 variants → generated_signals_k3/
 python markov_reward.py          # reads those CSVs, adds reward-process outputs
@@ -46,8 +72,8 @@ Run `MarkovModel_clean.py` first. Everything else only reads the CSVs it writes 
 ## what's in here
 
 ```
-thesis/
-├── BPI_Challenge_2019.xes          # input log (~695 MB)
+.
+├── BPI_Challenge_2019.xes          # NOT COMMITTED — download it yourself, see below
 ├── MarkovModel_clean.py            # main script — use this one
 ├── markov_reward.py                # MRP layer on top
 ├── compare_optimizers.py           # coordinate descent vs gradient descent
@@ -60,7 +86,8 @@ thesis/
 ├── generated_signals_k3/           # current outputs (k=3)
 ├── generated_signals/              # outputs from MarkovModel.py
 ├── generated_signals_v2/           # outputs from MarkovModel_v2.py
-└── generated_signals_v3/           # outputs from MarkovModel_v3.py
+├── generated_signals_v3/           # outputs from MarkovModel_v3.py
+└── requirements.txt
 ```
 
 The three `MarkovModel*.py` files are earlier iterations I kept for reference. `MarkovModel_clean.py` is the consolidated version with `--k`. Column names differ slightly in the old outputs (`without_noise`/`with_noise` vs `clean`/`signal`).
@@ -130,7 +157,7 @@ solution, so it comes from binning and noise, not from the optimiser.
 ### `regression_comparison.py`
 
 Reproduces the linear-regression baseline from `Event Log Manager/event_cost_eval.py`
-(my supervisor's implementation) — `LinearRegression(fit_intercept=False,
+(my supervisor's implementation, not part of this repository) — `LinearRegression(fit_intercept=False,
 positive=True)` on a design matrix with a manually added ones-column — and
 compares it against coordinate descent, plain OLS and ridge, under a
 chronological 70/30 train/test split.
@@ -379,6 +406,6 @@ same layout, prefix is `three_variants_*`
 - scikit-learn, scipy (comparison experiments only — `LinearRegression`, `Ridge`,
   `GaussianMixture`, `linear_sum_assignment`)
 
-No requirements.txt in the repo — just pip install what you need.
+Install them with `pip install -r requirements.txt`.
 
 Seeds are fixed (`SIGNAL_SEED = 123` etc.) so re-running on the same log gives the same numbers.
