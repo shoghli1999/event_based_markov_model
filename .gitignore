@@ -1,5 +1,16 @@
 BPI_Challenge_2019.xes
+BPI_Challenge_2019.csv
 __pycache__/
 *.pyc
 .DS_Store
 .vscode/
+
+# working notes and drafts, kept locally and not published
+FINAL_RESULTS.md
+MY_GUIDE.md
+PROJECT_DESCRIPTION.md
+THESIS_GUIDE.md
+THESIS_CODE_WALKTHROUGH_DETAILED.md
+THESIS_HANDOVER.md
+.backup_before_bw_fix/
+thesis_skeleton/

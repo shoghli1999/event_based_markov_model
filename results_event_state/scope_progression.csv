@@ -1,0 +1,4 @@
+scope,activities,events,event_percent,full_rank,training_rank,rank_deficit,cold_start_activities,every_cost_recoverable
+42 all activities,42,1595603,100.0,39,37,3,2,False
+39 collinear merged,39,1595603,100.0,39,37,0,2,False
+35 learnable,35,1590195,99.66106857407513,35,35,0,0,True

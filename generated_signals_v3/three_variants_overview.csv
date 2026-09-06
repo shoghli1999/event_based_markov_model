@@ -1,4 +1,0 @@
-variant_id,case_count,sequence_length,event_sequence
-variant_1,50286,5,Create Purchase Order Item -> Vendor creates invoice -> Record Goods Receipt -> Record Invoice Receipt -> Clear Invoice
-variant_2,30798,5,Create Purchase Order Item -> Record Goods Receipt -> Vendor creates invoice -> Record Invoice Receipt -> Clear Invoice
-variant_3,12214,2,Create Purchase Order Item -> Record Goods Receipt

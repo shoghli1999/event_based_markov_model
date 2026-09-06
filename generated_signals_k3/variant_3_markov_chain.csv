@@ -1,3 +1,0 @@
-state,next_state,count,probability
-Create Purchase Order Item,Record Goods Receipt,12214,1.0
-Record Goods Receipt,END,12214,1.0

@@ -1,6 +1,0 @@
-event_type,count,base_cost,avg_duration_seconds,estimated_total_cost
-Record Goods Receipt,50286,99,179.98,5068817.16
-Create Purchase Order Item,50286,98,179.88,5018482.04
-Record Invoice Receipt,50286,97,180.1,4968305.53
-Clear Invoice,50286,56,180.01,2906534.97
-Vendor creates invoice,50286,54,180.03,2805973.68

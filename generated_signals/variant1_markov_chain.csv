@@ -1,6 +1,0 @@
-state,next_state,transition_count,transition_probability
-Clear Invoice,END,50286,1.0
-Create Purchase Order Item,Vendor creates invoice,50286,1.0
-Record Goods Receipt,Record Invoice Receipt,50286,1.0
-Record Invoice Receipt,Clear Invoice,50286,1.0
-Vendor creates invoice,Record Goods Receipt,50286,1.0

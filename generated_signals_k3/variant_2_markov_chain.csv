@@ -1,6 +1,0 @@
-state,next_state,count,probability
-Clear Invoice,END,30798,1.0
-Create Purchase Order Item,Record Goods Receipt,30798,1.0
-Record Goods Receipt,Vendor creates invoice,30798,1.0
-Record Invoice Receipt,Clear Invoice,30798,1.0
-Vendor creates invoice,Record Invoice Receipt,30798,1.0

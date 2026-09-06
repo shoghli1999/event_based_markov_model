@@ -1,0 +1,8 @@
+activity,reason,events_excluded,complete_log_events,retained_events,retained_percent
+Release Purchase Requisition,absent from chronological training data,467,1595603,1590195,99.66106857407513
+SRM: Awaiting Approval,"co-occurring SRM group, not separately identifiable",1628,1595603,1590195,99.66106857407513
+SRM: Complete,"co-occurring SRM group, not separately identifiable",1628,1595603,1590195,99.66106857407513
+SRM: Document Completed,"co-occurring SRM group, not separately identifiable",1628,1595603,1590195,99.66106857407513
+SRM: Held,"co-occurring SRM group, not separately identifiable",6,1595603,1590195,99.66106857407513
+SRM: Incomplete,"co-occurring SRM group, not separately identifiable",6,1595603,1590195,99.66106857407513
+SRM: Transfer Failed (E.Sys.),absent from chronological training data,45,1595603,1590195,99.66106857407513

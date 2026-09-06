@@ -1,411 +1,237 @@
-# Event-based Markov modelling of energy consumption
+# Event-based energy modelling with variant-first hidden Markov models
 
-Code for my Master's thesis experiments on the BPI Challenge 2019 event log:
-recovering per-activity energy costs from an aggregated consumption signal.
+Master's thesis experiment. One idea runs through the whole repository:
 
-The idea: take process variants from the log, treat each activity as a Markov state, hide made-up energy costs inside a synthetic signal, then try to recover those costs from the signal. On top of that, `markov_reward.py` uses the learned energies + transition probabilities to get expected energy per case.
+> **One hidden state is one process activity.**
 
-The repo is self-contained — the scripts read the XES log directly and write
-everything into `generated_signals*/` next to them. Two folders from the project
-I built on (`signal_generator/`, `Event Log Manager/`) are referenced in places
-below but are **not** part of this repository.
+The number of states is therefore not a free choice. It is the number of
+activities. The transition matrix describes which activity follows which, and
+the Gaussian emission describes how much energy an activity uses. The daily
+building background belongs to the signal generator, not to the states.
 
-Data: [BPI Challenge 2019](https://www.tf-pm.org/resources/bpi-challenge/bpi-challenge-2019)
-(purchase-to-pay). The log is ~695 MB, over GitHub's file limit, so it is not
-committed — see [input](#input).
+## What is real and what is generated
 
----
+From the BPI Challenge 2019 purchase-order log: case identifiers, activity
+names, event timestamps, event order and process variants. 1,595,603 events
+after removing 320 timestamps outside 2018 and 2019, across 42 activities.
 
-## the headline result, without running anything
+Generated, following my supervisor's generator: activity energy values, event
+durations, the daily background and its noise.
 
-The main claim is that adding a Markov layer over the aggregated signal cuts
-one-step-ahead prediction error by 44% against the linear-regression baseline.
-That number is not just asserted here — it is in a committed output file:
+So this tests a method on real process structure against a known synthetic
+energy truth. It does not use measured facility energy and does not claim real
+energy savings.
 
-**[`generated_signals_k3/hmm_signal_comparison.csv`](generated_signals_k3/hmm_signal_comparison.csv)**
+## How the signal is built
 
+Each activity has a fixed base cost. Each event is given a duration drawn from a
+normal distribution with mean 180 seconds and standard deviation 20, clipped
+between 120 and 240. An event's energy is its base cost plus its duration times
+0.01. The building background is a sine peaking at 14:00, multiplied by a fresh
+random number between 80 and 90 in every interval. The meter reports one total
+every 30 minutes.
+
+An event lasting about three minutes can cross a 30-minute boundary. Its energy
+**and** its activity count are then shared between the two intervals in
+proportion to the time spent in each, following my supervisor's generator. Both
+sides move together, so the measured signal and the count matrix always describe
+the same thing. `final_model/interval_convention_check.py` measures what the
+alternative would have cost.
+
+Before fitting, only the predictable part of the background is removed. The
+random multiplier stays in the signal as real noise.
+
+## How an event is placed on the timeline, and why
+
+An event lasts about three minutes; the meter reports every thirty. So an event
+can start just before one interval ends and finish in the next. There are three
+ways to handle that, and all three are measured in
+`final_model/interval_convention_check.py`.
+
+| placement | energy | activity count |
+|---|---|---|
+| whole event | charged to the starting interval | charged to the starting interval |
+| **both shared (this thesis)** | **split between the two intervals** | **split the same way** |
+| energy only | split between the two intervals | left whole in the starting interval |
+
+My supervisor's generator splits an event's cost by duration, and this thesis
+follows it. His evaluation code, separately, describes the event matrix as counts
+of events per interval, which is the third row. Measured on the same data, that
+third combination does not work:
+
+| scope | placement | OLS | this model | intervals with energy but no count |
+|---|---|---:|---:|---:|
+| top three | whole event | 0.000551 | 0.000700 | 10,561 |
+| top three | both shared | 0.001298 | 0.000969 | 10,127 |
+| top three | energy only | 7.923744 | 7.923744 | 10,561 |
+| whole system | whole event | 0.388156 | 0.351772 | 22,652 |
+| whole system | both shared | 0.492592 | 0.573062 | 22,377 |
+| whole system | energy only | 98.902825 | 96.347041 | 22,652 |
+
+Splitting the energy while counting whole events leaves energy in thousands of
+intervals whose count row is empty. No estimator can explain energy where nothing
+is recorded as happening, and both methods degrade by two to four orders of
+magnitude, equally. So the two sides of the regression must be built the same
+way. Splitting both is this thesis's decision, and the table is the reason.
+
+Note also that the first row is the easiest of the three for everyone. Easier is
+not better here: with every interval equally clean there is nothing for variance
+weighting to do, which is precisely the contribution being tested.
+
+## How activity costs are estimated
+
+Feasible generalized least squares on the interval totals. An interval can be
+noisy for two reasons, and the variance model has one term for each:
+
+```text
+variance = a + b * (events in the interval) + c * (background shape) ** 2
 ```
-K=1  (lin.reg. baseline)   test_rmse_1step = 1.5657   energy_max_err = 0.02574
-K=6  (CHOSEN)              test_rmse_1step = 0.8743   energy_max_err = 0.00685
-```
 
-(1.5657 − 0.8743) / 1.5657 = **44.2%**, and 0.02574 / 0.00685 = **3.76x** on the
-worst per-state energy error. Every other results table below has a CSV beside it
-in the same folder. You do not need the 695 MB log to check any of them.
+The three terms are learned from the training residuals by non-negative least
+squares. Nothing is read from the generator. The model recovers them well:
 
----
+| scope | fixed term | per event | background |
+|---|---:|---:|---:|
+| top1 | 0.08813 | 0.05083 | 7.98211 |
+| top2 | 0.45174 | 0.02659 | 8.27408 |
+| top3 | 0.47511 | 0.02645 | 8.24892 |
+| top5 | 0.00000 | 0.06419 | 8.16737 |
+| whole system | 0.00000 | 0.08846 | 7.12207 |
 
-## how to run
+The true values are 0 for the fixed term, 0.0400 per event and 8.33333 for the
+background.
 
-All scripts live at the repository root — there is no subfolder to change into.
+## Baum–Welch is implemented and switched off
+
+The log names the activity of every training event, so nothing about the hidden
+states is unknown while the rewards are learned, and the per-event observation
+has to be invented from each interval's leftover. Measured on all five scopes it
+loses accuracy on all five. `final_model/baum_welch_check.py` produces the
+table. It can be switched back on with `BAUM_WELCH_DEFAULT` or the `baum_welch`
+argument of `fit_pooled_hmm`.
+
+## Scope: 35 of 42 activities
+
+Five SRM activities always occur together in two groups, so their individual
+costs cannot be separated. Two more never appear before the chronological cut.
+Removing all seven costs 0.339% of the events and leaves a full-rank problem.
+Rank is measured from whole-event counts, because sharing an event across
+intervals separates always-together columns by a hair of random duration and
+would claim more than the data supports.
+
+## Results
+
+Activity-cost error, median over 30 independent noise draws. This is the number
+to quote, because on the whole system the difference between methods is smaller
+than the swing between draws.
+
+| scope | OLS | this model | reduction | wins |
+|---|---:|---:|---:|---:|
+| top3 | 0.002710 | **0.001774** | 34.55% | 29/30 |
+| top5 | 0.035483 | **0.015670** | 55.84% | 30/30 |
+| whole system | 0.541584 | **0.449926** | 16.92% | 24/30 |
+
+Hidden-activity attribution. Test activity names are removed and the decoder has
+only the meter and the process order it learned.
+
+| scope | paths recognised | no transitions | variant-first | reduction |
+|---|---:|---:|---:|---:|
+| top1 | 100.0% | 1.2537 | **0.1586** | 87.4% |
+| top2 | 100.0% | 1.5877 | **0.1681** | 89.4% |
+| top3 | 100.0% | 1.5772 | **0.1675** | 89.4% |
+| top5 | 100.0% | 6.6963 | **0.1977** | 97.0% |
+| whole system | 58.9% | 25.9710 | **19.0767** | 26.5% |
+
+Reconstruction with known activities is a **tie**, about 4.01 for every method on
+the whole system. That is not a shortfall. The measured noise floor is 3.7540 and
+a perfect model given the true costs scores 4.0164, so every method is already at
+the ceiling. The remaining error is random background that nobody can predict.
+
+## Limitations, stated openly
+
+- Reconstruction is a tie **when the activities are known**, not a win. When
+  activities are hidden on the whole log, reconstruction is worse, see the point
+  below.
+- On the whole log, variant-first decoding improves attribution by 26% but makes
+  interval reconstruction about four times worse, because 41% of test cases
+  follow paths never seen in training and are forced onto the nearest known one.
+  This does not happen on any scope with full path coverage.
+- The whole-system cost advantage is small next to seed variation, so it is
+  quoted as a median over 30 seeds.
+- Energy, duration, background and noise are synthetic.
+- **An event's duration decides how it is split across two intervals, and those
+  durations are synthetic.** The real log has timestamps but no durations, so a
+  real analyst could not perform this split exactly. This is a controlled
+  assumption of the same kind as removing the known background shape.
+- "Whole system" means the 35 learnable activities, which is 99.661% of events,
+  not the literal 42-activity log.
+- Decoding is retrospective: case boundaries, event times and case lengths are
+  known. Test activity labels are used only for scoring.
+- The number of states was not selected by cross-validation, because a state is
+  an activity and the count is fixed. The proposal's dwell-time constraint does
+  not apply for the same reason.
+- Variants are computed directly from the log rather than in Fluxicon Disco.
+
+## Files
+
+| file | purpose |
+|---|---|
+| `data_pipeline.py` | load the log, generate energy, build the signal and count matrix |
+| `event_state_hmm.py` | the model and all four research questions |
+| `plot_results.py` | the three main figures |
+| `final_model/reward_layer.py` | expected energy of one complete case |
+| `final_model/per_activity_check.py` | the same result opened up activity by activity |
+| `final_model/scope_progression.py` | why the whole system keeps 35 of 42 activities |
+| `final_model/baum_welch_check.py` | measured evidence for switching Baum–Welch off |
+| `final_model/factorial_check.py` | RQ4 factorial composition |
+| `final_model/interval_convention_check.py` | what the interval convention costs |
+| `final_model/plot_reward.py`, `plot_per_activity.py` | figures for the two checks above |
+| `final_model/plot_pipeline.py` | the pipeline diagram, drawn from code |
+| `results_event_state/` | every CSV table and figure |
+| `images/` | the same figures, for the thesis |
+
+## History of this repository
+
+This repository began as an exploration and became a single, verified experiment.
+The earlier files are not deleted from the project's history, only from its
+current state, and the commit `fd39855` is tagged so that the earlier work stays
+one click away.
+
+What was there before: several successive versions of a Markov model built
+around energy regimes rather than activities, a set of generated signal folders
+for individual variants, and a number of one-off comparison scripts. That line of
+work answered a different modelling question, where a hidden state was an unknown
+energy level and the number of states had to be chosen. It was superseded by the
+decision that one hidden state is one process activity, which removes the state
+selection problem entirely and is the basis of everything here.
+
+What is here now: one data pipeline, one model, one plotting script, and nine
+small scripts under `final_model/`, six of which answer a single question a
+reader might raise and three of which draw figures. Every result table and every figure in
+`results_event_state/` is produced by those scripts, and every figure is drawn
+only from a saved table, so a figure can never disagree with a number.
+
+Not published here: the working notes written while the experiment was being
+built, and the LaTeX drafting folder. They are kept locally because they are
+about writing the thesis rather than about running the code.
+
+## Run everything
 
 ```bash
-pip install -r requirements.txt
-
-python MarkovModel_clean.py      # default: top 3 variants → generated_signals_k3/
-python markov_reward.py          # reads those CSVs, adds reward-process outputs
+python3 -m pip install -r requirements.txt
+python3 event_state_hmm.py \
+  --scope top1,top2,top3,top5,learnable \
+  --seed-check \
+  --transition-check
+python3 final_model/scope_progression.py
+python3 final_model/baum_welch_check.py
+python3 final_model/reward_layer.py && python3 final_model/plot_reward.py
+python3 final_model/per_activity_check.py && python3 final_model/plot_per_activity.py
+python3 final_model/factorial_check.py
+python3 final_model/interval_convention_check.py
+python3 plot_results.py
+python3 final_model/plot_pipeline.py
 ```
 
-Other options:
-
-```bash
-python MarkovModel_clean.py --k 1    # one variant only
-python MarkovModel_clean.py --k 2    # two variants
-
-python markov_reward.py --k 2
-python markov_reward.py --energy true   # use true energies instead of recovered ones
-```
-
-Comparison experiments (see the section further down):
-
-```bash
-python compare_optimizers.py       # coordinate descent vs gradient descent
-python regression_comparison.py    # linear regression baseline, ridge, time split
-python hmm_variants.py             # experiment 1 — HMM on variants 1+2+3
-python hmm_signal.py               # experiment 2 — Markov layer on the 30-min signal
-```
-
-Run `MarkovModel_clean.py` first. Everything else only reads the CSVs it writes — no XES reload.
-
----
-
-## what's in here
-
-```
-.
-├── BPI_Challenge_2019.xes          # NOT COMMITTED — download it yourself, see below
-├── MarkovModel_clean.py            # main script — use this one
-├── markov_reward.py                # MRP layer on top
-├── compare_optimizers.py           # coordinate descent vs gradient descent
-├── regression_comparison.py        # linear regression baseline vs mine, ridge, time split
-├── hmm_variants.py                 # experiment 1 — per-case HMM (Baum-Welch + Viterbi)
-├── hmm_signal.py                   # experiment 2 — Markov-switching regression on the signal
-├── MarkovModel.py                  # old version, 1 variant
-├── MarkovModel_v2.py               # old version, 2 variants
-├── MarkovModel_v3.py               # old version, 3 variants
-├── generated_signals_k3/           # current outputs (k=3)
-├── generated_signals/              # outputs from MarkovModel.py
-├── generated_signals_v2/           # outputs from MarkovModel_v2.py
-├── generated_signals_v3/           # outputs from MarkovModel_v3.py
-└── requirements.txt
-```
-
-The three `MarkovModel*.py` files are earlier iterations I kept for reference. `MarkovModel_clean.py` is the consolidated version with `--k`. Column names differ slightly in the old outputs (`without_noise`/`with_noise` vs `clean`/`signal`).
-
----
-
-## the model (short version)
-
-- each event type = one Markov state
-- energy is paid when you *enter* a state, not on the transition
-- within one variant the chain is basically deterministic (prob ≈ 1)
-- when you pool variants, probabilities reflect how often each path actually happens in the log
-
-I simulate event durations myself (normal, clipped 120–240 s). The "true" cost per event is `BASE_COST + duration × 0.01`. Those base costs are made up — they're the ground truth I hide in the signal and later try to get back.
-
-The signal is: sine baseline (daily pattern) + Gaussian noise + event costs binned to 30 minutes.
-
-Learning is coordinate descent on the event-occurrence matrix — the guess-and-refine loop from the thesis. I compare recovery on clean vs noisy signal to check that noise averages out.
-
----
-
-## scripts
-
-### `MarkovModel_clean.py`
-
-1. load XES
-2. find top-k variants
-3. build event objects with simulated durations
-4. generate synthetic signal
-5. cost table + 30-min event matrix
-6. Markov chains (pooled + per variant) + PNG plots
-7. learn per-state energy, print summary
-
-Config is at the top of the file: `FREQ`, `SINE_AMPLITUDE`, `NOISE_STD`, `LEARN_ITERS`, `BASE_COSTS`, etc.
-
-### `markov_reward.py`
-
-Reads `learning_summary.csv` for per-state energy and the markov chain CSVs for transition probs. Computes expected visits via the fundamental matrix `(I − Q)⁻¹`, multiplies by energy → expected energy per case.
-
-The per-state energy values come from the signal (same as the baseline). The probabilities come from counting transitions. The pooled chain should match the case-weighted average of the per-variant numbers — that's the sanity check (gap should be < 1e-3).
-
-Also writes reward-chain plots where nodes show E (energy) and n (expected visits).
-
----
-
-## comparison experiments
-
-These four never load the XES: `compare_optimizers.py` and `regression_comparison.py`
-read only the CSVs in `generated_signals_k{k}/` and run in seconds; `hmm_variants.py`
-and `hmm_signal.py` simulate or read the same CSVs and take a few minutes. Run
-`MarkovModel_clean.py` first.
-
-### `compare_optimizers.py`
-
-Coordinate descent vs gradient descent vs the exact least-squares solution, on
-the same X and y.
-
-Result: all three land on the same answer. Coordinate descent needs ~10 passes,
-gradient descent ~1,000 (5,000 on the noisy signal), because XᵀX has condition
-number ≈ 109 — the event types differ a lot in how often they occur, which makes
-gradient descent zig-zag. Rescaling the columns brings gradient descent down to
-~20 steps but adds a learning rate to tune.
-
-The residual error of 5.7e-4 is identical for every method including the exact
-solution, so it comes from binning and noise, not from the optimiser.
-
-### `regression_comparison.py`
-
-Reproduces the linear-regression baseline from `Event Log Manager/event_cost_eval.py`
-(my supervisor's implementation, not part of this repository) — `LinearRegression(fit_intercept=False,
-positive=True)` on a design matrix with a manually added ones-column — and
-compares it against coordinate descent, plain OLS and ridge, under a
-chronological 70/30 train/test split.
-
-Two setups are evaluated:
-
-- **oracle baseline** — the true sine is subtracted first, as `MarkovModel_clean.py`
-  does. Convenient, but the true baseline is not knowable in practice.
-- **constant baseline** — the raw signal is used and the background load is
-  estimated as a single intercept, which is what the baseline does.
-  This setup is *not* a realistic baseline model and is deliberately not called
-  one: a constant cannot follow a daily sine, so the wave stays in the residual.
-  Modelling that background load is what the Markov layer in `hmm_signal.py` is
-  for — the regimes take the place of the single constant.
-
-Results:
-
-- The baseline's non-negative fit, plain OLS and coordinate descent agree to
-  four decimals. `positive=True` never binds, because the unconstrained solution
-  is already positive everywhere (energies run 55–101).
-- Ridge does not help. Error grows from 8e-4 at α=0.01 to 2e-2 at α=1000. With
-  18,304 rows and 5 unknowns there is no variance problem for it to fix. The
-  penalty is applied through `P = diag(0, 1, 1, …)` so the intercept is genuinely
-  exempt; `Ridge(fit_intercept=False)` on a matrix with a manual ones-column would
-  shrink the background load too, which an earlier version of this file did.
-- Going from the oracle to the constant baseline raises the worst energy error
-  from 8e-4 to 2.6e-2 and test RMSE from 0.70 to 1.57. The estimated intercept is
-  5.30 against a true baseline mean of 5.0. The extra error is the daily sine: a
-  residual sine of amplitude 2 contributes √(1.41²+0.5²) ≈ 1.50, essentially the
-  observed 1.57.
-
-### `hmm_variants.py`
-
-A real Hidden Markov Model, Baum-Welch and Viterbi written from scratch (no
-`hmmlearn`). Hidden states are the activities; only per-step energy readings are
-observed. Four methods are scored on identical data: the linear regression
-baseline (labels known), a step-number baseline, the HMM, and a Gaussian mixture
-(no transitions). The mixture is the control that isolates what the Markov
-structure contributes.
-
-```bash
-python hmm_variants.py                    # default: variants 1+2+3
-python hmm_variants.py --variants 1,2     # equal-length subset
-python hmm_variants.py --variants 1       # fixed order, HMM cannot show its value
-```
-
-Variants of different lengths are supported. Variant 3 has 2 steps against 5 for
-variants 1 and 2, so traces are right-padded to the longest one and carried with
-a mask. Past the end of a short trace the forward recursion freezes alpha and
-sets its scaling factor to 1, so padded steps contribute log 1 = 0 and the chain
-cannot keep walking through the transition matrix; a transition is counted only
-when both of its endpoints are real; and Viterbi holds its score with an identity
-backpointer, so the traceback carries the last real state backwards. Padded slots
-are excluded from every mean, variance, transition count and accuracy score.
-
-The number of hidden states is **not** set to the true activity count. It is
-searched over `K_CANDIDATES` and chosen on a validation split by per-observation
-held-out log-likelihood. That score climbs, flattens around K=7 and then stays
-level out to K=20, so its plain argmax picks an arbitrary K from the flat region
-(it returned 15 here, on noise alone). `select_k` therefore takes the smallest K
-within `SELECT_TOL` of the best — the point where the curve levels off.
-
-State-to-activity mapping is built from the **training decoding only**
-(`map_states_from_train`). An earlier version matched learned means against
-activity means computed over the whole data set, which leaked test information
-into the evaluation.
-
-Results with the current `BASE_COSTS`, on variants 1+2+3 (the default):
-
-| noise | chosen K | HMM | step number only | mixture |
-|-------|----------|-----|------------------|---------|
-| 0.5   | 7 | 100.0% | 83.2% | 83.9% |
-| 1     | 7 | 100.0% | 83.2% | 64.1% |
-| 2     | 7 | 100.0% | 83.2% | 53.1% |
-| 5     | 6 |  85.3% | 83.2% | 44.1% |
-| 10    | 5 |  73.4% | 83.2% | 42.6% |
-| 20    | 5 |  82.1% | 83.2% | 36.1% |
-
-So the defensible claim is narrow: an HMM helps when several variants share
-activities but order them differently, and the transition information separates
-states that the energies alone cannot. That advantage is not guaranteed as noise
-grows — past noise 5 the step-number baseline wins.
-
-Four honest limitations:
-
-- **The chosen K exceeds the activity count at low noise.** With K=7 for 5
-  activities, EM splits an activity that appears at different positions, and the
-  many-to-one training mapping merges the pieces back. Part of the accuracy gain
-  therefore comes from that mapping step, which uses training labels, rather than
-  from the HMM alone. Fixing K to 5 gives 92.7% at noise 0.5 instead of 100%.
-- **At high noise EM still falls into a local optimum** where the states act as
-  step numbers and the transition matrix loses its branching. `_init_params`
-  starts restart 0 from a Gaussian mixture, which fixes the low-noise case but
-  not the high-noise one.
-- **Variant 1 alone proves nothing.** The step-number baseline scores 100% by
-  construction there, since the order never changes. Report variants 1+2 or
-  1+2+3.
-
-On energy recovery the HMM matches the linear regression baseline at low noise
-(0.0212 vs 0.0212 at noise 0.5) and falls behind as noise grows, which is
-expected — the baseline is given the labels. The HMM column is not monotone in
-noise (1.93 at noise 5 against 0.58 at noise 10); that is EM landing in different
-local optima, not a property of the data, and it is a reason to treat single
-high-noise numbers with caution rather than to read a trend into them.
-
-### what this experiment is, and is not
-
-This is a **controlled per-case experiment**: one energy reading per activity
-step per case. It shows that hidden states plus transition structure can recover
-activities from energy alone, and how that degrades with noise.
-
-It is **not** the aggregated-signal problem the proposal defines. The comparison
-against the baseline here is also not like-for-like: the linear regression
-baseline is handed the true activity label of every observation, while the HMM
-must infer it. That problem is the subject of `hmm_signal.py` below, where the
-comparison is fair.
-
-### `hmm_signal.py`
-
-Experiment 2 — the Markov layer on the aggregated 30-minute signal, which is the
-problem the proposal defines:
-
-    y_t = b_t + Σ_j X_tj w_j + ε_t
-
-Markov-switching regression: a hidden regime `z_t` follows a Markov chain and
-
-    y_t | z_t = k  ~  N( b_k + Σ_j X_tj w_j , σ_k² )
-
-The energies `w` are shared across regimes — energy per event type is a physical
-constant. What switches is the background level `b_k` and the noise scale `σ_k`.
-
-**Why the comparison is fair here.** At K=1 the model is exactly the linear
-regression baseline: one constant intercept, one set of energies, least squares.
-So K=1 is the baseline, fitted by the same code on the same rows, and the Markov
-layer is a strict generalisation of it. Both see the same y, the same X, the same
-split. And because it works on intervals rather than traces, every variant in the
-event matrix takes part — the equal-length restriction of `hmm_variants.py` does
-not apply, so nothing is dropped.
-
-Split is chronological: 60% train, 10% validation, 30% test. Test numbers use
-one-step-ahead prediction, where ŷ_t is built from y_{<t} and X_t only.
-
-| K | | test RMSE (1-step) | worst energy error |
-|---|---|--------------------|--------------------|
-| 1 | linear regression baseline | 1.5657 | 0.0257 |
-| 2 | | 1.0230 | 0.0094 |
-| 4 | | 0.9194 | 0.0075 |
-| 6 | **chosen** | **0.8743** | **0.0068** |
-| 8 | | 0.8667 | 0.0053 |
-| 12 | | 0.8299 | 0.0021 |
-
-The Markov layer cuts prediction error by 44% and energy error by a factor of
-about four against the linear regression baseline, on the proposal's own data.
-
-The six regime background levels come out as 3.39, 3.90, 4.63, 5.71, 6.53, 6.78
-against a true baseline sine running 3.0…7.0. The regimes have tiled the daily
-cycle — the Markov layer is recovering the background load that a single constant
-intercept cannot follow.
-
-Three things to be careful about:
-
-- **K is chosen on validation RMSE, not validation log-likelihood.** The
-  likelihood never turns over: it keeps climbing to K=48 and beyond, because
-  extra regimes always buy some variance structure. Test RMSE, meanwhile, is flat
-  past K≈12 and at K=48 was *worse* than at K=32. Selecting on the reported
-  quantity is the defensible rule; `SELECT_TOL` on likelihood is kept only as a
-  diagnostic column.
-- **Gaussian HMM likelihood is unbounded.** Before `SIGMA_FLOOR_FRAC` was added a
-  regime at K=48 collapsed to σ=0.016 with a background level of 15.0, far outside
-  the true 3…7 range, and drove the likelihood up on nothing.
-- **Test RMSE is 0.87 against a noise floor of 0.5.** Piecewise-constant regimes
-  approximate a smooth daily cycle, they do not reproduce it, so a gap remains by
-  construction. More regimes shrink it, which is why the candidate list is capped
-  at 12: past that the background load stops being a process model and becomes a
-  lookup table for the time of day.
-
----
-
-## input
-
-**`BPI_Challenge_2019.xes`** — BPI 2019 purchase-to-pay log, ~695 MB.
-
-GitHub won't take files over 100 MB, so you'll need Git LFS or just download the log yourself and drop it in this folder before running.
-
----
-
-## outputs — `generated_signals_k{k}/`
-
-Written by `MarkovModel_clean.py`. Reward files added by `markov_reward.py`.
-
-**CSVs from the clean model:**
-
-- `variants_overview.csv` — which variants, how many cases, the activity sequence
-- `signal.csv` — 30-min time series: baseline, noise, event_cost, clean, signal
-- `cost_table.csv` — counts and costs per variant × event type
-- `event_matrix_30min.csv` — how many events of each type per 30-min bin
-- `markov_chain_pooled.csv` — state, next_state, count, probability (all variants mixed)
-- `variant_1_markov_chain.csv` etc. — same thing but for one variant each
-- `learning_summary.csv` — true vs learned energy per state (+ AVERAGE row)
-
-**CSVs from markov_reward:**
-
-- `markov_reward_recovery.csv` — true vs recovered energy, abs error
-- `markov_reward_per_case.csv` — expected energy per case (per variant, pooled, weighted avg check)
-- `markov_reward_visits.csv` — expected visits per state on the pooled chain
-
-**CSVs from the comparison experiments:**
-
-- `regression_comparison_metrics.csv` — per method: energy error, train/test R², test RMSE
-- `regression_comparison_energies.csv` — recovered energy per state, both setups
-- `hmm_variants123_comparison.csv` — HMM vs baseline vs step number vs mixture (default, variants 1+2+3)
-- `hmm_variants12_comparison.csv`, `hmm_variants1_comparison.csv` — same for the 1+2 and 1-only subsets
-- `hmm_signal_comparison.csv` — per K: test RMSE, energy error, regime sigmas
-- `hmm_signal_k_selection.csv` — validation log-likelihood and RMSE per K
-
-**PNGs:**
-
-- `markov_chain_pooled.png`, `variant_*_markov_chain.png` — transition graphs
-- `variant_*_reward_chain.png`, `markov_reward_chain_pooled.png` — same but with energy + visits on nodes
-- `markov_reward_per_case.png` — bar chart
-
-There's also a `markovChainPictures/` subfolder with copies of some plots I used in the thesis writeup.
-
----
-
-## old output folders
-
-Same kind of files, different naming. Kept so I don't break anything that references them.
-
-**`generated_signals/`** (from `MarkovModel.py`, 1 variant):
-`variant1_signal.csv`, `variant1_cost_table.csv`, `variant1_event_matrix_30min.csv`, `variant1_markov_chain.csv`, `variant1_markov_state_learning.csv`, `variant1_markov_state_learning_summary.csv`
-
-**`generated_signals_v2/`** (2 variants):
-shared files prefixed `two_variants_*`, per-variant chains as `variant_1_markov_chain.csv` etc., plus PNGs
-
-**`generated_signals_v3/`** (3 variants):
-same layout, prefix is `three_variants_*`
-
----
-
-## deps
-
-- pm4py (XES loading)
-- pandas, numpy
-- matplotlib, networkx (plots)
-- scikit-learn, scipy (comparison experiments only — `LinearRegression`, `Ridge`,
-  `GaussianMixture`, `linear_sum_assignment`)
-
-Install them with `pip install -r requirements.txt`.
-
-Seeds are fixed (`SIGNAL_SEED = 123` etc.) so re-running on the same log gives the same numbers.
+Put `BPI_Challenge_2019.csv` beside the scripts, or set the `BPI2019_CSV`
+environment variable to its full path.

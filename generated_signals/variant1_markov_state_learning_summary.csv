@@ -1,7 +1,0 @@
-state,true_generator_state_energy,learned_from_clean_signal,learned_from_noisy_signal,noise_effect_on_learning,error_vs_true_clean,error_vs_true_noisy,abs_error_clean,abs_error_noisy,abs_noise_effect
-Create Purchase Order Item,99.798792,99.796935,99.797796,0.000862,-0.001857,-0.000996,0.001857,0.000996,0.000862
-Vendor creates invoice,55.800296,55.799894,55.799574,-0.000319,-0.000402,-0.000722,0.000402,0.000722,0.000319
-Record Goods Receipt,100.799769,100.800274,100.799876,-0.000398,0.000506,0.000107,0.000506,0.000107,0.000398
-Record Invoice Receipt,98.800969,98.802054,98.802152,9.8e-05,0.001085,0.001183,0.001085,0.001183,9.8e-05
-Clear Invoice,57.800083,57.800178,57.800179,0.0,9.5e-05,9.6e-05,9.5e-05,9.6e-05,0.0
-AVERAGE,82.599982,82.599867,82.599915,4.9e-05,-0.000115,-6.6e-05,0.000789,0.000621,0.000335

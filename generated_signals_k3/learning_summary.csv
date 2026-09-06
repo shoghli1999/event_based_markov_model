@@ -1,7 +1,0 @@
-state,true_energy,learned_clean,learned_noisy,error_clean,error_noisy,noise_effect
-Clear Invoice,57.799395,57.79933,57.799332,-6.5e-05,-6.2e-05,2e-06
-Create Purchase Order Item,99.799395,99.798868,99.798681,-0.000527,-0.000714,-0.000187
-Record Goods Receipt,100.800104,100.800061,100.800566,-4.3e-05,0.000463,0.000506
-Record Invoice Receipt,98.800481,98.801054,98.800783,0.000573,0.000302,-0.000271
-Vendor creates invoice,55.799633,55.799192,55.799106,-0.000441,-0.000527,-8.6e-05
-AVERAGE,82.599802,82.599701,82.599694,-0.000101,-0.000108,-7e-06
