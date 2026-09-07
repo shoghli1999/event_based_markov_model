@@ -74,6 +74,14 @@ def compare(scope: str) -> dict:
     factorial, _, _ = model.weighted_fit(blocks[:cut], problem.target[:cut], background)
     truth = np.tile(problem.truth, variants)
 
+    # An activity that never occurs in a given variant has an all-zero column,
+    # so its cost in that block is not merely unsupported, it does not exist.
+    # Scoring those columns against a tiled truth charges the estimator for
+    # failing to recover a value that was never there, and on top3 three such
+    # columns out of fifteen produce an error of 14.16 on their own.  The
+    # reported error therefore covers the activity and variant pairs that occur,
+    # and the naive figure is kept beside it so the difference is visible.
+    occupied = blocks.sum(axis=0) > 0
     unsupported = int((blocks[:cut].sum(axis=0) == 0).sum())
     return {
         "scope": scope,
@@ -84,7 +92,10 @@ def compare(scope: str) -> dict:
         "factorial_rank": int(np.linalg.matrix_rank(blocks[:cut])),
         "costs_with_no_training_data": unsupported,
         "shared_cost_error": float(np.abs(shared - problem.truth).mean()),
-        "factorial_cost_error": float(np.abs(factorial - truth).mean()),
+        "factorial_cost_error": float(np.abs(factorial - truth)[occupied].mean()),
+        "factorial_cost_error_with_empty_columns": float(
+            np.abs(factorial - truth).mean()
+        ),
         "shared_test_rmse": model._rmse(
             problem.target, problem.X @ shared, cut
         ),
