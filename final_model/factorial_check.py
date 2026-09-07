@@ -65,8 +65,13 @@ def compare(scope: str) -> dict:
     activities = len(problem.activities)
     cut = problem.cut
 
-    shared, _, _ = model.weighted_fit(problem.X[:cut], problem.target[:cut])
-    factorial, _, _ = model.weighted_fit(blocks[:cut], problem.target[:cut])
+    # Both sides use the same three-term variance model as the rest of the
+    # thesis.  Leaving the background shape out here would weight the intervals
+    # by a different rule from every other table, and the shared column would
+    # then disagree with the same estimator reported elsewhere.
+    background = problem.background_shape[:cut]
+    shared, _, _ = model.weighted_fit(problem.X[:cut], problem.target[:cut], background)
+    factorial, _, _ = model.weighted_fit(blocks[:cut], problem.target[:cut], background)
     truth = np.tile(problem.truth, variants)
 
     unsupported = int((blocks[:cut].sum(axis=0) == 0).sum())
