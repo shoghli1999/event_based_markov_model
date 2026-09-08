@@ -59,9 +59,16 @@ average 4.5984 events, late starters only 3.6314, and case length correlates
 +0.43 with how much room was left.
 
 The "settled" columns therefore keep only future cases that began at least the
-90th percentile of training case duration before the log ends. Both are reported:
-where settled and future agree, the log end explains nothing and any gap is real
-process drift.
+90th percentile of training case duration before the recording ends, and the
+"longest_follow_up" columns keep the quarter of future cases watched longest.
+Neither group is a set of cases known to have finished; the first had a full
+margin of observation and the second had the most of it. Where the strict group
+exists and agrees with the full future group, the end of the recording explains
+nothing. Where it cannot be formed at all, as on the whole system, the strict
+test is simply unavailable, and the gap between the full future group and the
+longest-watched quarter is reported as evidence CONSISTENT WITH truncation by
+the end of the recording. It is not proof of truncation, and it is never process
+drift on the strength of these numbers alone.
 
 Usage
 ─────
@@ -72,6 +79,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -80,8 +88,10 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from event_state_hmm import (  # noqa: E402
+    FREQ,
     _complete_training_cases,
     _fit_rewards,
+    _simulated_complete_events,
     fit_pooled_hmm,
     load_problem,
 )
@@ -145,6 +155,47 @@ def pooled_visits(problem) -> np.ndarray:
 
 
 SETTLED_QUANTILE = 0.90
+# The last recorded event is not a safe end date for the recording. The log runs
+# densely to 18 January 2019 and then stops. Exactly seven events out of
+# 1,595,603 sit behind gaps of two weeks to five months after that, and taking
+# the maximum stretches the observation window by ten months, which lets every
+# future case appear to have had time to finish. The end is therefore the last
+# event before the first gap longer than a week. There are only four such gaps in
+# the whole log and all four lie in that stray tail, so the rule is unambiguous.
+RECORDING_GAP = pd.Timedelta(days=7)
+# Share of future cases kept for the longest follow-up check.
+FOLLOW_UP_SHARE = 0.25
+
+
+@lru_cache(maxsize=1)
+def recording_end_timestamp() -> pd.Timestamp:
+    """When the log stops recording, taken once from the complete log.
+
+    One date is used for every scope. The recording period is a property of the
+    log, not of the subset being analysed, so deriving it per scope would give
+    each one a different observation window and make the settled columns
+    incomparable.
+    """
+    stamps = pd.DatetimeIndex(_simulated_complete_events()["ts"]).sort_values()
+    gaps = stamps[1:] - stamps[:-1]
+    big = np.flatnonzero(gaps > RECORDING_GAP)
+    return stamps[big[0]] if len(big) else stamps[-1]
+
+
+def _observation_deadline(problem) -> pd.Timestamp:
+    """The latest a case may start and still have a full margin of observation.
+
+    Everything here is done in clock time rather than in interval indices. A
+    scope holding fewer activities has a shorter timeline of its own, so an index
+    would be capped at that scope's last interval and each scope would end up
+    judged against a slightly different window. Timestamps keep the promise that
+    the observation period is one and the same for every scope.
+    """
+    grouped = problem.events.groupby("case", sort=False)["ts"]
+    first, last = grouped.min(), grouped.max()
+    training = list(_complete_training_cases(problem.events, problem.cut))
+    margin = (last[training] - first[training]).quantile(SETTLED_QUANTILE)
+    return recording_end_timestamp() - margin
 
 
 def future_cases(problem) -> set:
@@ -161,12 +212,26 @@ def settled_future_cases(problem) -> set:
     and it looks shorter than it is. The margin is the 90th percentile of how
     long a training case takes, so nine out of ten cases had room to finish.
     """
-    grouped = problem.events.groupby("case", sort=False)["bin"]
-    first, last = grouped.min(), grouped.max()
-    training = list(_complete_training_cases(problem.events, problem.cut))
-    margin = float((last[training] - first[training]).quantile(SETTLED_QUANTILE))
-    return {case for case in future_cases(problem)
-            if first[case] <= problem.events["bin"].max() - margin}
+    first = problem.events.groupby("case", sort=False)["ts"].min()
+    deadline = _observation_deadline(problem)
+    return {case for case in future_cases(problem) if first[case] <= deadline}
+
+
+def longest_follow_up_cases(problem) -> set:
+    """The quarter of future cases with the most observation time after they start.
+
+    On the whole system no future case clears the strict margin above, so that
+    column is empty there. This softer group is not a set of cases known to have
+    finished; it is the group that was watched longest, and it is reported as
+    supporting evidence rather than as a guaranteed result.
+    """
+    first = problem.events.groupby("case", sort=False)["ts"].min()
+    future = sorted(future_cases(problem))
+    if not future:
+        return set()
+    room = (recording_end_timestamp() - first[future]).clip(lower=pd.Timedelta(0))
+    threshold = room.quantile(1.0 - FOLLOW_UP_SHARE)
+    return set(room[room >= threshold].index)
 
 
 def _case_energy(events: pd.DataFrame, cases: set) -> tuple[float, float, int]:
@@ -220,7 +285,8 @@ def report(scope: str) -> dict:
     # The same prediction, now on cases the chain never saw.
     predicted = row["case_energy_variants_hmm"]
     for label, group in (("future", future_cases(problem)),
-                         ("settled", settled_future_cases(problem))):
+                         ("settled", settled_future_cases(problem)),
+                         ("longest_follow_up", longest_follow_up_cases(problem))):
         energy, length, count = _case_energy(problem.events, group)
         row[f"{label}_cases"] = count
         row[f"{label}_measured_mean_case_energy"] = energy

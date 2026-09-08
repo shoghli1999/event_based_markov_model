@@ -7,7 +7,9 @@ Left panel   the real test: how far the prediction is from the truth on cases
              the chain never saw. Training agreement is shown beside it only for
              comparison, because a chain built by counting always reproduces the
              cases it counted, so that bar cannot fail.
-Middle panel the energy of one complete case, measured against predicted.
+Middle panel the energy of one complete case on TRAINING cases, measured against
+             predicted. The held-out comparison lives in the left panel; keeping
+             them apart stops the two being read as one result.
 Right panel  a consistency check: the per-variant chains and the pooled chain
              must expect the same number of events per case.
 
@@ -25,7 +27,7 @@ import numpy as np
 import pandas as pd
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "results_event_state"
-GREY, BLUE, GREEN = "#888888", "#4477AA", "#228833"
+GREY, BLUE, GREEN, ORANGE = "#888888", "#4477AA", "#228833", "#EE7733"
 
 
 def bars(axis, positions, series, ylabel, title):
@@ -46,6 +48,8 @@ def label_bars(axis, positions, series, fmt="{:.2f}"):
     for index, (_, values, _) in enumerate(series):
         offset = (index - (len(series) - 1) / 2) * width
         for position, value in zip(positions + offset, values):
+            if not np.isfinite(value):
+                continue
             axis.text(position, value, fmt.format(value),
                       ha="center", va="bottom", fontsize=7, color="dimgray")
 
@@ -57,14 +61,23 @@ def main():
     x = np.arange(len(scopes))
     figure, axis = plt.subplots(1, 3, figsize=(16, 4.4))
 
+    # A missing settled bar is informative: on the whole system no future case
+    # clears the strict margin, so that test cannot be run there at all.
     honest = [
-        ("future cases", table["future_hmm_error_percent"], BLUE),
-        ("future cases that had time to finish", table["settled_hmm_error_percent"], GREEN),
+        ("all future cases", table["future_hmm_error_percent"], BLUE),
+        ("the quarter watched longest",
+         table["longest_follow_up_hmm_error_percent"], ORANGE),
+        ("those meeting the strict margin",
+         table["settled_hmm_error_percent"], GREEN),
         ("training cases (cannot fail)", table["hmm_error_percent"], GREY),
     ]
     bars(axis[0], x, honest, "error against measured energy (%)",
          "How far off on cases the chain never saw")
     label_bars(axis[0], x, honest)
+    for position, row in enumerate(table.itertuples()):
+        if pd.isna(row.settled_hmm_error_percent):
+            axis[0].text(position + 0.1, 0.4, "no eligible cases", rotation=90,
+                         ha="center", va="bottom", fontsize=7, color="dimgray")
 
     energy = [
         ("measured directly", table["measured_mean_case_energy"], GREY),
@@ -72,11 +85,7 @@ def main():
         ("predicted, OLS costs", table["case_energy_variants_ols"], GREEN),
     ]
     bars(axis[1], x, energy, "energy per complete case",
-         "Energy of one complete case")
-    for position, row in enumerate(table.itertuples()):
-        axis[1].text(position, row.measured_mean_case_energy * 1.02,
-                     f"{row.settled_hmm_error_percent:.2f}% off on unseen cases",
-                     ha="center", fontsize=7, color="dimgray")
+         "Energy of one complete case, training cases")
 
     chains = [
         ("variant chains", table["events_per_case_variants"], BLUE),
