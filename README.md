@@ -59,17 +59,24 @@ follows it. His evaluation code, separately, describes the event matrix as count
 of events per interval, which is the third row. Measured on the same data, that
 third combination does not work:
 
-| scope | placement | OLS | this model | intervals with energy but no count |
-|---|---|---:|---:|---:|
-| top three | whole event | 0.000551 | 0.000700 | 10,561 |
-| top three | both shared | 0.001298 | 0.000969 | 10,127 |
-| top three | energy only | 7.923744 | 7.923744 | 10,561 |
-| whole system | whole event | 0.388156 | 0.351772 | 22,652 |
-| whole system | both shared | 0.492592 | 0.573062 | 22,377 |
-| whole system | energy only | 98.902825 | 96.347041 | 22,652 |
+| scope | placement | OLS | this model | stranded intervals | stranded energy |
+|---|---|---:|---:|---:|---:|
+| top three | whole event | 0.000551 | 0.000700 | 0 | 0.00% |
+| top three | both shared | 0.001298 | 0.000969 | 0 | 0.00% |
+| top three | energy only | 7.923744 | 7.923744 | 434 | 7.95% |
+| whole system | whole event | 0.388156 | 0.351772 | 0 | 0.00% |
+| whole system | both shared | 0.492592 | 0.573062 | 0 | 0.00% |
+| whole system | energy only | 98.902825 | 96.347041 | 275 | 0.60% |
 
-Splitting the energy while counting whole events leaves energy in thousands of
-intervals whose count row is empty. No estimator can explain energy where nothing
+The last two columns count intervals that hold event energy no counted activity
+can explain, and the share of all event energy stranded in them. They are
+measured on the event energy alone and never on the meter signal, because the
+meter signal also carries background noise and that is non-zero in nearly every
+interval.
+
+Splitting the energy while counting whole events strands 7.95 percent of all
+event energy on top three, in 434 intervals whose count row is empty, and 275
+such intervals on the whole system. No estimator can explain energy where nothing
 is recorded as happening, and both methods degrade by two to four orders of
 magnitude, equally. So the two sides of the regression must be built the same
 way. Splitting both is this thesis's decision, and the table is the reason.
