@@ -3,8 +3,10 @@ plot_pipeline.py
 ────────────────
 The pipeline figure for the start of the methodology chapter.
 
-Drawn from code rather than by hand so it cannot drift away from what the
-scripts actually do. Every box names the file that performs that step.
+Drawn from code rather than by hand so it cannot drift away from the steps the
+scripts actually take. The bottom row holds the four things that are measured:
+the activity costs, the reconstruction of the held-out meter, the attribution of
+hidden events, and the energy of a complete case.
 
 Output
 ──────
@@ -28,24 +30,37 @@ REAL, MADE, MODEL, OUT = "#4477AA", "#EE7733", "#228833", "#AA3377"
 
 # title, subtitle, column, row, colour
 BOXES = [
-    ("BPI Challenge 2019 log", "case, activity, timestamp\n1,595,603 events, 42 activities", 0, 5, REAL),
-    ("Synthetic energy", "base cost + duration x 0.01\nper event", 2, 5, MADE),
-    ("Process variants", "most frequent complete paths\ntop 1, 2, 3, 5 and the learnable log", 0, 4, REAL),
-    ("Building background", "daily shape x uniform(80, 90)\nfresh in every interval", 2, 4, MADE),
-    ("Interval aggregation", "30 minute totals; an event crossing\na boundary is split, energy and\ncount together", 1, 3, MODEL),
-    ("Chronological split", "cut after 70% of all events,\nby cumulative count", 1, 2, MODEL),
-    ("Viterbi decoding", "no transitions, pooled,\nand variant first", 0, 1, MODEL),
-    ("Weighted regression", "variance = a + b(events)\n+ c(background)^2", 1, 1, MODEL),
-    ("Markov reward layer", "absorbing chain with an END\nstate, energy of a whole case", 2, 1, MODEL),
-    ("Hidden event attribution", "activity names removed\nafter the cut", 0, 0, OUT),
-    ("Activity costs", "compared with OLS and ridge", 1, 0, OUT),
-    ("Energy per complete case", "tested on cases never seen", 2, 0, OUT),
+    ("BPI Challenge 2019 log", "case, activity, timestamp\n1,595,603 events, 42 activities", 0, 6, REAL),
+    ("Synthetic energy", "base cost + 0.01 x duration\nfor every event", 1.5, 6, MADE),
+    ("Building background", "daily shape x uniform(80, 90),\nfresh in every interval", 3, 6, MADE),
+    ("Process variants and scopes", "top 1, 2, 3 and 5 variants and\nthe whole system of 35 activities", 0, 5, REAL),
+    ("Interval aggregation", "30-minute totals and counts, expected\nbackground removed; a crossing event\nis split, energy and count together", 1.5, 4, MODEL),
+    ("Chronological split", "cut after 70% of all events;\ntraining part fits the models,\nheld-out part is decoded and scored", 1.5, 3, MODEL),
+    ("Cost estimation", "weighted estimator,\nwith OLS and ridge as baselines", 0.5, 2, MODEL),
+    ("Event-state HMM", "one state per activity: start,\ntransitions, energy and timing", 2.5, 2, MODEL),
+    ("Decoding", "no-transition, pooled and variant-first,\nagainst a position-only baseline", 1.5, 1, MODEL),
+    ("Markov reward layer", "absorbing chain\nwith an END state", 3, 1, MODEL),
+    ("Activity costs", "error against\nthe true costs", 0, 0, OUT),
+    ("Reconstruction", "held-out meter rebuilt from\nknown or decoded activities", 1, 0, OUT),
+    ("Attribution", "activity and energy of\neach held-out event", 2, 0, OUT),
+    ("Energy of a complete case", "tested on cases\nnever seen", 3, 0, OUT),
 ]
 
-ARROWS = [(0, 1), (0, 2), (2, 4), (1, 4), (3, 4), (4, 5),
-          (5, 6), (5, 7), (5, 8), (6, 9), (7, 10), (8, 11)]
+# (source, target) by position in BOXES
+ARROWS = [
+    (0, 1), (0, 3),                 # log to its energy and to the scopes
+    (1, 4), (2, 4), (3, 4),         # energy, background and scope into the intervals
+    (4, 5),                         # intervals and their counts into the split
+    (5, 6), (5, 7),                 # training part into costs and the HMM
+    (6, 7),                         # costs become the energy emissions
+    (7, 8), (7, 9),                 # the HMM drives decoding and the reward layer
+    (6, 10), (6, 11),               # costs, and the meter rebuilt from known activities
+    (8, 11), (8, 12),               # the meter rebuilt from decoded activities, attribution
+    (9, 13),                        # energy of a complete case
+]
 
-WIDTH, HEIGHT, GAP_X, GAP_Y = 3.6, 1.3, 4.5, 2.05
+WIDTH, HEIGHT, GAP_X, GAP_Y = 3.6, 1.3, 4.2, 2.05
+ROWS = max(row for *_, row, _ in BOXES)
 
 
 def place(column, row):
@@ -67,7 +82,7 @@ def edges(source, target):
 
 def main():
     """Draw the pipeline figure and save it into images/."""
-    figure, axis = plt.subplots(figsize=(14, 11))
+    figure, axis = plt.subplots(figsize=(15, 12.5))
     for title, subtitle, column, row, colour in BOXES:
         x, y = place(column, row)
         axis.add_patch(FancyBboxPatch(
@@ -85,19 +100,19 @@ def main():
             start, end, arrowstyle="-|>", mutation_scale=14, zorder=2,
             linewidth=1.3, color="#777777", shrinkA=0, shrinkB=0))
 
-    top = 5 * GAP_Y + HEIGHT + 0.55
+    top = ROWS * GAP_Y + HEIGHT + 0.55
     for index, (colour, label) in enumerate([(REAL, "from the event log"),
                                              (MADE, "generated"),
-                                             (MODEL, "model"),
+                                             (MODEL, "processing and model"),
                                              (OUT, "what is measured")]):
-        x = index * 3.3
+        x = index * GAP_X
         axis.add_patch(FancyBboxPatch(
             (x, top), 0.42, 0.28, boxstyle="round,pad=0.03", linewidth=1.5,
             edgecolor=colour, facecolor=colour + "18"))
         axis.text(x + 0.65, top + 0.14, label, fontsize=9.5,
                   va="center", color="#333333")
 
-    axis.set_xlim(-0.5, 2 * GAP_X + WIDTH + 0.5)
+    axis.set_xlim(-0.5, 3 * GAP_X + WIDTH + 0.5)
     axis.set_ylim(-0.6, top + 0.9)
     axis.axis("off")
     figure.tight_layout()
