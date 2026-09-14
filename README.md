@@ -196,6 +196,7 @@ the ceiling. The remaining error is random background that nobody can predict.
 | `final_model/plot_reward.py`, `plot_per_activity.py` | figures for the two checks above |
 | `final_model/plot_pipeline.py` | the pipeline diagram, drawn from code |
 | `final_model/plot_state_example.py` | selected states and transitions of the whole-system model |
+| `final_model/plot_end_example.py` | the same states in the reward layer's chain, with the END state |
 | `results_event_state/` | every CSV table and figure |
 | `images/` | the same figures, for the thesis |
 
@@ -214,9 +215,9 @@ energy level and the number of states had to be chosen. It was superseded by the
 decision that one hidden state is one process activity, which removes the state
 selection problem entirely and is the basis of everything here.
 
-What is here now: one data pipeline, one model, one plotting script, and eleven
+What is here now: one data pipeline, one model, one plotting script, and twelve
 small scripts under `final_model/`, seven of which answer a single question a
-reader might raise and four of which draw figures. Every result table and every figure in
+reader might raise and five of which draw figures. Every result table and every figure in
 `results_event_state/` is produced by those scripts, and every figure is drawn
 only from a saved table, so a figure can never disagree with a number.
 
@@ -242,6 +243,7 @@ python3 final_model/interval_convention_check.py
 python3 plot_results.py
 python3 final_model/plot_pipeline.py
 python3 final_model/plot_state_example.py
+python3 final_model/plot_end_example.py
 ```
 
 Put `BPI_Challenge_2019.csv` beside the scripts, or set the `BPI2019_CSV`
