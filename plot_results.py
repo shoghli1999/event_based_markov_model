@@ -95,53 +95,43 @@ def plot_main() -> None:
 
 
 def plot_rq2() -> None:
-    """Show reward and transition results as chains are compressed."""
+    """Costs and named activities as cases are compressed, median over the noise draws.
+
+    The attribution errors of the decoders are given in the thesis table, so the
+    right panel shows what the table does not: how many held-out activities each
+    decoder still names correctly.
+    """
     table = pd.read_csv(RESULTS / "rq2_correlation.csv")
     table = table.groupby("span_minutes", sort=False).median(numeric_only=True)
-    labels = ["7 days", "2 hours", "30 min", "0 min"]
-    figure, axes = plt.subplots(1, 2, figsize=(10, 4.3))
+    labels = ["7 days", "2 hours", "30 minutes", "zero"]
+    figure, axes = plt.subplots(1, 2, figsize=(12, 4.4))
     grouped_bars(
         axes[0],
         labels,
         [
-            ("OLS", table["ols_mean_cost_error"], "#6874E8"),
-            (
-                "Weighted regression",
-                table["weighted_regression_mean_cost_error"],
-                "#F28E2B",
-            ),
-            ("Event-state HMM", table["hmm_mean_cost_error"], "#E15759"),
+            ("Ordinary least squares", table["ols_mean_cost_error"], "#A0CBE8"),
+            ("Weighted estimator", table["weighted_regression_mean_cost_error"], "#4E79A7"),
         ],
-        "Mean activity-cost error (log scale)",
+        "Activity cost error (log scale)",
         log=True,
     )
-    axes[0].set_title("Known-activity reward estimation")
-    axes[0].legend(frameon=False)
+    axes[0].set_title("Activity costs (lower is better)")
+    axes[0].legend(frameon=False, fontsize=9, loc="upper left")
     grouped_bars(
         axes[1],
         labels,
         [
-            (
-                "No transitions",
-                table["independent_decoder_event_energy_mae"],
-                "#40B0A6",
-            ),
-            (
-                "Pooled HMM",
-                table["pooled_decoder_event_energy_mae"],
-                "#6874E8",
-            ),
-            (
-                "Variant-first HMM",
-                table["variant_decoder_event_energy_mae"],
-                "#F28E2B",
-            ),
+            ("No-transition control", 100 * table["independent_decoder_state_accuracy"], "#40B0A6"),
+            ("Pooled decoder", 100 * table["pooled_decoder_state_accuracy"], "#6874E8"),
+            ("Variant-first decoder", 100 * table["variant_decoder_state_accuracy"], "#F28E2B"),
         ],
-        "Mean hidden-event energy error",
+        "Held-out events named correctly (%)",
     )
-    axes[1].set_title("Matched transition comparison")
-    axes[1].legend(frameon=False, fontsize=8)
-    figure.suptitle("RQ2: correlation stress test")
+    axes[1].set_ylim(0, 105)
+    axes[1].set_title("Activities named correctly (higher is better)")
+    axes[1].legend(frameon=False, fontsize=9, loc="upper right")
+    for axis in axes:
+        axis.set_xlabel("Case span after compression")
     figure.tight_layout()
     save(figure, "rq2_correlation.png")
     plt.close(figure)
