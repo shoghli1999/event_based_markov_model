@@ -138,35 +138,42 @@ def plot_rq2() -> None:
 
 
 def plot_rq4() -> None:
-    """Show the trade-off in the requested HMM and LRM composition."""
+    """The variant-first decoder against the hybrid that charges its paths with OLS costs.
+
+    Both panels use a logarithmic scale, because the narrow scopes sit near the
+    floor of each measure while the whole system is two orders of magnitude
+    higher, and a linear scale would flatten the narrow scopes to nothing.
+    """
     table = pd.read_csv(RESULTS / "event_state_results.csv")
-    labels = table["scope"].replace({"learnable": "whole\nlearnable"}).tolist()
-    figure, axes = plt.subplots(1, 2, figsize=(11, 4.4))
+    labels = table["scope"].map(SCOPE_LABELS).tolist()
+    figure, axes = plt.subplots(1, 2, figsize=(13, 4.6))
     grouped_bars(
         axes[0],
         labels,
         [
-            ("No transitions", table["independent_decoder_event_energy_mae"], "#40B0A6"),
-            ("Variant HMM", table["variant_decoder_event_energy_mae"], "#F28E2B"),
-            ("Variant HMM + LRM", table["variant_hmm_lrm_event_energy_mae"], "#6874E8"),
+            ("No-transition control", table["independent_decoder_event_energy_mae"], "#40B0A6"),
+            ("Variant-first decoder", table["variant_decoder_event_energy_mae"], "#F28E2B"),
+            ("Hybrid with OLS costs", table["variant_hmm_lrm_event_energy_mae"], "#8C564B"),
         ],
-        "Mean hidden-event energy error",
+        "Attribution error per held-out event (log scale)",
+        log=True,
     )
-    axes[0].set_title("Event-level attribution")
-    axes[0].legend(frameon=False, fontsize=8)
+    axes[0].set_ylim(0.1, 60)
+    axes[0].set_title("Energy attributed to hidden events (lower is better)")
+    axes[0].legend(frameon=False, fontsize=9, loc="upper left")
     grouped_bars(
         axes[1],
         labels,
         [
-            ("No transitions", table["independent_decoder_test_rmse"], "#40B0A6"),
-            ("Variant HMM", table["variant_decoder_test_rmse"], "#F28E2B"),
-            ("Variant HMM + LRM", table["variant_hmm_lrm_test_rmse"], "#6874E8"),
+            ("No-transition control", table["independent_decoder_test_rmse"], "#40B0A6"),
+            ("Variant-first decoder", table["variant_decoder_test_rmse"], "#F28E2B"),
+            ("Hybrid with OLS costs", table["variant_hmm_lrm_test_rmse"], "#8C564B"),
         ],
-        "Aggregate held-out RMSE",
+        "Held-out RMSE (log scale)",
+        log=True,
     )
-    axes[1].set_title("Meter reconstruction")
-    axes[1].legend(frameon=False, fontsize=8)
-    figure.suptitle("RQ4: combining variant HMMs and linear rewards")
+    axes[1].set_ylim(1, 1000)
+    axes[1].set_title("Meter rebuilt from decoded activities (lower is better)")
     figure.tight_layout()
     save(figure, "rq4_composition.png")
     plt.close(figure)
