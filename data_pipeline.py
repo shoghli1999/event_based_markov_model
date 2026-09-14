@@ -127,7 +127,7 @@ def _csv_path() -> Path:
 
 
 def load_events() -> pd.DataFrame:
-    """Read the three required columns and remove invalid placeholder years."""
+    """Read the three required columns, including case activity timestamp and remove invalid placeholder years."""
     events = pd.read_csv(
         _csv_path(),
         usecols=list(CSV_COLUMNS),
@@ -145,6 +145,7 @@ def load_events() -> pd.DataFrame:
 def select_coverage(events: pd.DataFrame, number: str) -> pd.DataFrame:
     """Keep the cases belonging to the N most frequent complete paths."""
     paths = events.groupby("case", sort=False)["activity"].apply(tuple)
+    # value_counts().head(n) picks the n most common paths
     selected = set(paths.value_counts().head(int(number)).index)
     cases = set(paths[paths.isin(selected)].index)
     result = events[events["case"].isin(cases)].reset_index(drop=True)
@@ -164,8 +165,10 @@ def filter_learnable_events(
     their count columns carry the same information and no estimator can split
     their costs.  Sharing an event across intervals makes the matrix look full
     rank, but only because each event was given a random synthetic duration;
-    final_model/scope_progression.py shows the rank returning to 39 when every
-    duration is the same, so the exclusion stands under both conventions.
+
+    final_model/scope_progression.py
+    shows the rank returning to 39 when every duration is the same, so the 
+    exclusion stands under both conventions.
     """
     counts = events["activity"].value_counts()
     audit = pd.DataFrame([
@@ -231,7 +234,11 @@ def background_noise(shape: np.ndarray, seed: int) -> np.ndarray:
 
 
 def _duration_share(events: pd.DataFrame, interval: pd.Series) -> np.ndarray:
-    """Fraction of each event's duration that falls in the following interval."""
+    """Fraction of each event's duration that falls in the following interval.
+    
+    into=second of the activity starts
+    into+duration=activity and how much it lasts
+    into+duration-step=how much is stick out and goes to next interval"""
     step = pd.Timedelta(FREQ).total_seconds()
     duration = events["duration"].to_numpy(float)
     if (duration > step).any():
@@ -256,9 +263,16 @@ def _split_events(
     following = start + 1
     inside = following < len(timeline)
     return (
+        # where:  which timeline interval receives the piece
+        # which:  which original event the piece belongs to
+        # weight: what fraction of that event is placed there
         np.concatenate([start, following[inside]]),
         np.concatenate([event, event[inside]]),
         np.concatenate([1.0 - share_next, share_next[inside]]),
+        # Example: one event crosses from interval 0 into interval 1.
+        # where  = [0, 1]       -> the two destination intervals
+        # which  = [0, 0]       -> both pieces come from event 0
+        # weight = [0.33, 0.67] -> 33% goes to interval 0 and 67% to interval 1
     )
 
 
@@ -274,6 +288,9 @@ def _spread_signal_and_matrix(
     energy = events["energy"].to_numpy(float)
     event_cost = np.zeros(len(timeline))
     np.add.at(event_cost, where, energy[which] * weight)
+    # Example: if the event energy is 60, the two intervals receive
+    # 60 * 0.33 = 20 and 60 * 0.67 = 40. The activity count is split
+    # by the same weights, keeping the energy and count matrix aligned.
 
     column = {activity: index for index, activity in enumerate(activities)}
     code = events["activity"].map(column).to_numpy(int)
