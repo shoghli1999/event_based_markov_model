@@ -189,6 +189,7 @@ the ceiling. The remaining error is random background that nobody can predict.
 | `final_model/reward_layer.py` | expected energy of one complete case |
 | `final_model/per_activity_check.py` | the same result opened up activity by activity |
 | `final_model/scope_progression.py` | why the whole system keeps 35 of 42 activities |
+| `final_model/merged_scope_check.py` | what merging the five co-occurring activities, instead of removing them, gains and costs |
 | `final_model/baum_welch_check.py` | measured evidence for switching Baum–Welch off |
 | `final_model/factorial_check.py` | RQ4 factorial composition |
 | `final_model/interval_convention_check.py` | what the interval convention costs |
@@ -212,8 +213,8 @@ energy level and the number of states had to be chosen. It was superseded by the
 decision that one hidden state is one process activity, which removes the state
 selection problem entirely and is the basis of everything here.
 
-What is here now: one data pipeline, one model, one plotting script, and nine
-small scripts under `final_model/`, six of which answer a single question a
+What is here now: one data pipeline, one model, one plotting script, and ten
+small scripts under `final_model/`, seven of which answer a single question a
 reader might raise and three of which draw figures. Every result table and every figure in
 `results_event_state/` is produced by those scripts, and every figure is drawn
 only from a saved table, so a figure can never disagree with a number.
@@ -231,6 +232,7 @@ python3 event_state_hmm.py \
   --seed-check \
   --transition-check
 python3 final_model/scope_progression.py
+python3 final_model/merged_scope_check.py
 python3 final_model/baum_welch_check.py
 python3 final_model/reward_layer.py && python3 final_model/plot_reward.py
 python3 final_model/per_activity_check.py && python3 final_model/plot_per_activity.py
