@@ -12,6 +12,14 @@ import matplotlib.pyplot as plt
 
 ROOT = Path(__file__).resolve().parent
 RESULTS = ROOT / "results_event_state"
+IMAGES = ROOT / "images"
+
+
+def save(figure, name: str) -> None:
+    """Save a figure beside the result tables and into images/ for the thesis."""
+    for folder in [RESULTS, IMAGES]:
+        folder.mkdir(parents=True, exist_ok=True)
+        figure.savefig(folder / name, dpi=220)
 
 
 def grouped_bars(axis, labels, series, ylabel, log=False):
@@ -28,91 +36,61 @@ def grouped_bars(axis, labels, series, ylabel, log=False):
     axis.grid(axis="y", alpha=0.25)
 
 
+SCOPE_LABELS = {
+    "top1": "top one",
+    "top2": "top two",
+    "top3": "top three",
+    "top5": "top five",
+    "learnable": "whole system",
+}
+
+
 def plot_main() -> None:
-    """Separate reward estimation from the genuine transition comparison."""
+    """Attribution of hidden events by all four decoders, against the floor of the measure.
+
+    The cost and reconstruction comparisons have their own tables in the thesis,
+    with the medians over thirty draws, so this figure shows only what those
+    tables do not: how each decoder attributes energy and names activities once
+    the activity labels are hidden. The floor is the attribution error left when
+    every activity and every cost is exactly right, from thesis_facts.csv.
+    """
     table = pd.read_csv(RESULTS / "event_state_results.csv")
-    labels = table["scope"].replace({"learnable": "whole\nlearnable"}).tolist()
-    colors = ["#6874E8", "#40B0A6", "#F28E2B", "#E15759"]
-    figure, axes = plt.subplots(1, 4, figsize=(19, 4.6))
+    facts = pd.read_csv(RESULTS / "thesis_facts.csv").set_index("fact")["value"]
+    labels = table["scope"].map(SCOPE_LABELS).tolist()
+    floor = [float(facts[f"{scope}:attribution_error_floor"]) for scope in table["scope"]]
+    decoders = [
+        ("Position-only baseline", "position", "#BAB0AC"),
+        ("No-transition control", "independent_decoder", "#40B0A6"),
+        ("Pooled decoder", "pooled_decoder", "#6874E8"),
+        ("Variant-first decoder", "variant_decoder", "#F28E2B"),
+    ]
+    figure, axes = plt.subplots(1, 2, figsize=(13, 4.6))
 
     grouped_bars(
         axes[0],
         labels,
-        [
-            ("OLS", table["ols_known_x_test_rmse"], colors[0]),
-            ("Ridge", table["ridge_known_x_test_rmse"], colors[1]),
-            ("Weighted regression", table["weighted_regression_test_rmse"], colors[2]),
-            ("Event-state HMM", table["hmm_known_x_test_rmse"], colors[3]),
-        ],
-        "Held-out RMSE",
+        [(name, table[f"{key}_event_energy_mae"], color) for name, key, color in decoders],
+        "Attribution error per held-out event (log scale)",
+        log=True,
     )
-    axes[0].set_title("Known activities: reconstruction")
-    axes[0].legend(frameon=False, fontsize=8)
+    for position, value in enumerate(floor):
+        axes[0].hlines(value, position - 0.45, position + 0.45, colors="#333333",
+                       linestyles="--", linewidth=1.1, zorder=5,
+                       label="floor of the measure" if position == 0 else None)
+    axes[0].set_ylim(0.1, 60)
+    axes[0].set_title("Energy attributed to hidden events (lower is better)")
+    axes[0].legend(frameon=False, fontsize=8.5, loc="upper left")
 
     grouped_bars(
         axes[1],
         labels,
-        [
-            ("OLS", table["ols_mean_cost_error"], colors[0]),
-            ("Ridge", table["ridge_mean_cost_error"], colors[1]),
-            (
-                "Weighted regression",
-                table["weighted_regression_mean_cost_error"],
-                colors[2],
-            ),
-            ("Event-state HMM", table["hmm_mean_cost_error"], colors[3]),
-        ],
-        "Mean activity-cost error (log scale)",
-        log=True,
+        [(name, 100 * table[f"{key}_state_accuracy"], color) for name, key, color in decoders],
+        "Held-out events named correctly (%)",
     )
-    axes[1].set_title("Known activities: reward estimation")
-
-    grouped_bars(
-        axes[2],
-        labels,
-        [
-            (
-                "No transitions",
-                table["independent_decoder_event_energy_mae"],
-                "#BAB0AC",
-            ),
-            (
-                "Pooled HMM",
-                table["pooled_decoder_event_energy_mae"],
-                colors[0],
-            ),
-            (
-                "Variant-first HMM",
-                table["variant_decoder_event_energy_mae"],
-                colors[2],
-            ),
-        ],
-        "Mean event-energy error",
-    )
-    axes[2].set_title("Hidden activities: attribution")
-    axes[2].legend(frameon=False, fontsize=8)
-
-    grouped_bars(
-        axes[3],
-        labels,
-        [
-            ("Position only", 100 * table["position_state_accuracy"], "#BAB0AC"),
-            (
-                "No transitions",
-                100 * table["independent_decoder_state_accuracy"],
-                colors[1],
-            ),
-            ("Pooled HMM", 100 * table["pooled_decoder_state_accuracy"], colors[0]),
-            ("Variant-first HMM", 100 * table["variant_decoder_state_accuracy"], colors[2]),
-        ],
-        "Correctly decoded activities (%)",
-    )
-    axes[3].set_ylim(0, 105)
-    axes[3].set_title("Hidden activities: state accuracy")
-    axes[3].legend(frameon=False, fontsize=8)
-    figure.suptitle("One model throughout: every hidden state is an activity", fontsize=14)
+    axes[1].set_ylim(0, 105)
+    axes[1].set_title("Activities named correctly (higher is better)")
     figure.tight_layout()
-    figure.savefig(RESULTS / "rq1_rq3_overview.png", dpi=220)
+    save(figure, "rq1_rq3_overview.png")
     plt.close(figure)
 
 
@@ -165,7 +143,7 @@ def plot_rq2() -> None:
     axes[1].legend(frameon=False, fontsize=8)
     figure.suptitle("RQ2: correlation stress test")
     figure.tight_layout()
-    figure.savefig(RESULTS / "rq2_correlation.png", dpi=220)
+    save(figure, "rq2_correlation.png")
     plt.close(figure)
 
 
@@ -200,7 +178,7 @@ def plot_rq4() -> None:
     axes[1].legend(frameon=False, fontsize=8)
     figure.suptitle("RQ4: combining variant HMMs and linear rewards")
     figure.tight_layout()
-    figure.savefig(RESULTS / "rq4_composition.png", dpi=220)
+    save(figure, "rq4_composition.png")
     plt.close(figure)
 
 

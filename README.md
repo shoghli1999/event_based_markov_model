@@ -242,11 +242,11 @@ python3 final_model/reward_layer.py && python3 final_model/plot_reward.py
 python3 final_model/per_activity_check.py && python3 final_model/plot_per_activity.py
 python3 final_model/factorial_check.py
 python3 final_model/interval_convention_check.py
+python3 final_model/thesis_facts.py
 python3 plot_results.py
 python3 final_model/plot_pipeline.py
 python3 final_model/plot_state_example.py
 python3 final_model/plot_end_example.py
-python3 final_model/thesis_facts.py
 ```
 
 Put `BPI_Challenge_2019.csv` beside the scripts, or set the `BPI2019_CSV`
