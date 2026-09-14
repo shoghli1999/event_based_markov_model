@@ -341,6 +341,58 @@ def reconstruction(problems: dict) -> None:
             float(np.sum(residual[busiest] ** 2) / np.sum(residual ** 2)))
 
 
+def scaling(learnable) -> None:
+    """Whole-system held-out events split by whether their complete path was seen in training.
+
+    The split uses the same candidate narrowing as the decoder and the same test
+    of coverage as _seen_path_coverage, so a case counts as seen exactly when the
+    reported coverage counts it. It reads held-out paths only to score, after both
+    decoders have finished.
+    """
+    section = "RQ3, Scaling Across Variants"
+    fitted = model.fit_pooled_hmm(learnable)
+    variant_states, *_ = model.decode_variant_first(learnable, fitted, model.FULL_LOG_EXPERTS_PER_LENGTH)
+    pooled_states, *_ = model.decode_pooled(learnable, fitted)
+
+    events = learnable.events
+    test = events["bin"].to_numpy(int) >= learnable.cut
+    logged = events["state"].to_numpy(int)
+    energy = events["energy"].to_numpy(float)
+    templates, _, _ = model._training_templates(learnable, model.FULL_LOG_EXPERTS_PER_LENGTH)
+    seen = np.zeros(len(events), dtype=bool)
+    cases = []
+    for _, case in events.groupby("case", sort=False):
+        rows = case.index.to_numpy()
+        positions = np.arange(len(rows))
+        held_out = positions[test[rows]]
+        if not len(held_out):
+            continue
+        candidates = templates.get(len(rows), [])
+        known = positions[~test[rows]]
+        if len(known):
+            candidates = [
+                item for item in candidates
+                if np.array_equal(item[0][known], logged[rows[known]])
+            ] or candidates
+        covered = any(np.array_equal(path, logged[rows]) for path, _ in candidates)
+        seen[rows[held_out]] = covered
+        cases.append((covered, len(candidates)))
+    cases = pd.DataFrame(cases, columns=["covered", "candidates"])
+
+    add(section, "held_out_cases", len(cases))
+    add(section, "held_out_cases_seen_percent", 100.0 * float(cases["covered"].mean()))
+    add(section, "median_candidates_seen_cases", float(cases.loc[cases["covered"], "candidates"].median()),
+        "candidate paths of the same length after narrowing by the events before the cut")
+    add(section, "median_candidates_unseen_cases", float(cases.loc[~cases["covered"], "candidates"].median()))
+    for label, mask in [("seen", test & seen), ("unseen", test & ~seen), ("all", test)]:
+        add(section, f"{label}:held_out_events", int(mask.sum()))
+        for name, states in [("pooled", pooled_states), ("variant_first", variant_states)]:
+            add(section, f"{label}:{name}_attribution_error",
+                float(np.mean(np.abs(fitted.energy[states[mask]] - energy[mask]))))
+            add(section, f"{label}:{name}_state_accuracy_percent",
+                100.0 * float(np.mean(states[mask] == logged[mask])))
+
+
 def noise_sources(problems: dict) -> None:
     """True per-event variance after clipping, conditioning, and the example interval."""
     section = "RQ1, Recovery of the Two Noise Sources"
@@ -382,6 +434,7 @@ def main() -> None:
     metrics(problems)
     reconstruction(problems)
     noise_sources(problems)
+    scaling(problems["learnable"])
     table = pd.DataFrame(ROWS)
     table.to_csv(TABLE, index=False)
     print(table.to_string(index=False))
