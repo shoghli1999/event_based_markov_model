@@ -1,0 +1,10 @@
+from,to,probability
+start,Create Purchase Order Item,0.9454266998240793
+Create Purchase Order Item,Vendor creates invoice,0.4458505700543562
+Vendor creates invoice,Record Goods Receipt,0.5189518889649439
+Record Goods Receipt,Record Invoice Receipt,0.3979100468437692
+Record Invoice Receipt,Clear Invoice,0.7166385909174012
+Vendor creates invoice,Record Invoice Receipt,0.4273622064746606
+Create Purchase Order Item,Record Goods Receipt,0.3090222286793474
+Record Goods Receipt,Vendor creates invoice,0.25254364988370437
+Clear Invoice,Record Invoice Receipt,0.3752770253629122
