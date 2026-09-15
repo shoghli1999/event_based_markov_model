@@ -1,6 +1,6 @@
 """
 plot_reward.py
-──────────────
+--------------
 One figure for the Markov reward layer, read from reward_layer.csv.
 
 It shows only the test that can fail: how far the predicted energy of one
@@ -17,12 +17,12 @@ system no future case meets that margin, and the figure says so instead of
 leaving a silent gap.
 
 Output
-──────
+------
     results_event_state/reward_layer.png
     images/reward_layer.png
 
 Usage
-─────
+-----
     python final_model/plot_reward.py
 """
 

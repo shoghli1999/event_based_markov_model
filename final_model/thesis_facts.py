@@ -1,6 +1,6 @@
 """
 thesis_facts.py
-───────────────
+---------------
 Every descriptive number quoted in the thesis that no result table holds.
 
 The result tables in results_event_state/ carry the comparisons: cost errors,
@@ -15,7 +15,7 @@ Nothing here changes a result. It only reads the log, the generator and the
 fitted models.
 
 Output
-──────
+------
     results_event_state/thesis_facts.csv
         section   the thesis section the number belongs to
         fact      a short name for the number
@@ -23,7 +23,7 @@ Output
         note      what it means
 
 Usage
-─────
+-----
     python final_model/thesis_facts.py
 """
 

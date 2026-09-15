@@ -1,6 +1,6 @@
 """
 plot_per_activity.py
-────────────────────
+--------------------
 One figure per scope showing what the case total cannot show.
 
 Left panel   : visits per case, counted from the real cases against the number
@@ -12,13 +12,13 @@ Middle panel : energy per case contributed by each activity, real against
                two activity costs and these bars separate, while the case total
                does not move.
 Right panel  : how far each learned cost is from the truth, against how many
-               training events supported it. It shows the honest limit, that
-               rarely seen activities cannot be pinned down.
+               training events supported it. It shows the limit: rarely seen
+               activities cannot be pinned down.
 
 Reads results_event_state/per_activity_check.csv, so it never refits anything.
 
 Usage
-─────
+-----
     python final_model/plot_per_activity.py
 """
 

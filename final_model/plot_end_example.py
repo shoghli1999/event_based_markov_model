@@ -1,6 +1,6 @@
 """
 plot_end_example.py
-───────────────────
+-------------------
 The states of plot_state_example.py again, now in the absorbing chain of the
 reward layer.
 
@@ -16,13 +16,13 @@ to other activities are not drawn, so the arrows leaving a state do not sum to
 one.
 
 Output
-──────
+------
     results_event_state/end_example.csv
     results_event_state/end_example.png
     images/end_example.png
 
 Usage
-─────
+-----
     python final_model/plot_end_example.py
 """
 

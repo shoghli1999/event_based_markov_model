@@ -1,10 +1,10 @@
 """
 baum_welch_check.py
-───────────────────
+-------------------
 Evidence for switching Baum-Welch off in the emission fit.
 
 The question
-────────────
+------------
 The model learns one energy cost per activity from 30-minute meter totals.
 Two estimators are available for that:
 
@@ -15,7 +15,7 @@ Baum-Welch is the standard choice for a hidden Markov model, so it has to be
 tested rather than assumed.
 
 Why it cannot help here
-───────────────────────
+-----------------------
 Baum-Welch exists to recover states that nobody observed. In this model a
 state is an activity, and the event log names the activity of every training
 event. So at training time nothing is hidden. Baum-Welch throws those names
@@ -29,7 +29,7 @@ interval's leftover. The leftover is mostly meter noise, so the invented
 per-event numbers carry no extra information.
 
 What this script measures
-─────────────────────────
+-------------------------
 For each scope it fits the model twice, once with Baum-Welch off and once with
 it on, and reports the mean absolute activity-cost error against the known
 truth. Nothing else changes.
@@ -38,11 +38,11 @@ Baum-Welch stays in event_state_hmm.py and can be switched back on with
 BAUM_WELCH_DEFAULT or the baum_welch argument of fit_pooled_hmm.
 
 Output
-──────
+------
     results_event_state/baum_welch_check.csv
 
 Usage
-─────
+-----
     python final_model/baum_welch_check.py
 """
 

@@ -1,6 +1,6 @@
 """
 plot_state_example.py
-─────────────────────
+---------------------
 A few states of the pooled whole-system model, drawn from the model itself.
 
 One hidden state is one activity, so a picture of the model is a picture of the
@@ -14,13 +14,13 @@ The strongest transition out of Clear Invoice is drawn so that the figure does
 not suggest the process ends there.
 
 Output
-──────
+------
     results_event_state/state_example.csv
     results_event_state/state_example.png
     images/state_example.png
 
 Usage
-─────
+-----
     python final_model/plot_state_example.py
 """
 

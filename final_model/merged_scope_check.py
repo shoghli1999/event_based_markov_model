@@ -1,10 +1,10 @@
 """
 merged_scope_check.py
-─────────────────────
+---------------------
 What happens if the five inseparable activities are merged instead of removed.
 
 The question
-────────────
+------------
 The whole system keeps 35 activities. Seven are left out: five SRM activities
 that always occur together in two groups, so their individual costs cannot be
 separated, and two activities that never occur before the chronological cut.
@@ -15,7 +15,7 @@ matrix has full rank 37, and only the two late activities are dropped. This
 script measures what that alternative gains and what it costs.
 
 What is compared
-────────────────
+----------------
 35 learnable    the scope used in the thesis
 37 merged       the same log, with the five co-occurring activities kept as
                 two group activities
@@ -38,11 +38,11 @@ events it holds. A group is therefore not an activity, which is why the thesis
 keeps the 35 individually identifiable ones.
 
 Output
-──────
+------
     results_event_state/merged_scope_check.csv
 
 Usage
-─────
+-----
     python final_model/merged_scope_check.py
 """
 

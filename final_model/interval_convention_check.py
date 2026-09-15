@@ -1,6 +1,6 @@
 """
 interval_convention_check.py
-────────────────────────────
+----------------------------
 An event lasts about three minutes and the meter reports every thirty, so an
 event can start just before one interval ends and finish in the next. There are
 three ways to place it, and this script measures all three on the same data.
@@ -19,11 +19,11 @@ estimator can explain energy where nothing is recorded as happening. The last
 column counts those intervals.
 
 Output
-──────
+------
     results_event_state/interval_convention_check.csv
 
 Usage
-─────
+-----
     python final_model/interval_convention_check.py
     python final_model/interval_convention_check.py --scope top3 learnable
 """

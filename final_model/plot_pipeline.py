@@ -1,6 +1,6 @@
 """
 plot_pipeline.py
-────────────────
+----------------
 The pipeline figure for the start of the methodology chapter.
 
 Drawn from code rather than by hand so it cannot drift away from the steps the
@@ -9,12 +9,12 @@ the activity costs, the reconstruction of the held-out meter, the attribution of
 hidden events, and the energy of a complete case.
 
 Output
-──────
+------
     images/pipeline.png
     results_event_state/pipeline.png
 
 Usage
-─────
+-----
     python final_model/plot_pipeline.py
 """
 

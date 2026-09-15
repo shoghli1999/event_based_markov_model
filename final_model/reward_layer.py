@@ -1,29 +1,29 @@
 """
 reward_layer.py
-───────────────
+---------------
 Markov reward process on top of the event-state HMM.
 Follows the design of markov_reward.py from the repository history.
 
 What it adds
-────────────
+------------
 The event-state HMM learns how much each activity costs. This file combines
 those costs with the process structure to answer a question regression cannot
 answer at all:
 
-    what is the expected energy of one COMPLETE case?
+    what is the expected energy of one complete case?
 
 Why a case needs an END
-───────────────────────
+-----------------------
 A transition table whose rows each sum to 1 says "after every activity another
 activity always follows", so the case never finishes and expected visits are
 infinite. Real cases do finish, so the chain needs an absorbing END state.
 
 Two kinds of chain, and why both
-────────────────────────────────
+--------------------------------
 per variant   A variant is one fixed activity sequence, so its END is definite:
               variant 1 always ends on Clear Invoice, variant 3 always ends on
               Record Goods Receipt. For a fixed sequence the expected visits are
-              simply how many times each activity appears in it. Exact, no
+              how many times each activity appears in it. Exact, no
               matrix needed.
 
 pooled        All variants mixed into one chain. Here paths branch and the END
@@ -31,22 +31,22 @@ pooled        All variants mixed into one chain. Here paths branch and the END
               matrix N = (I - Q)^-1 of the absorbing chain.
 
 The check
-─────────
-The pooled chain must reproduce the case-weighted average of the per-variant
-chains. Those are two different calculations, so agreement is real evidence that
-the pooled transition matrix is consistent with the individual process paths.
-This is the same validation the original script used.
+---------
+The pooled chain reproduces the case-weighted average of the per-variant chains.
+The two are computed differently, but both are counted from the same training
+cases, so they agree by construction. Their agreement checks the code, not the
+process.
 
 Everything is counted from cases that finish before the training cut, so no
 test-period ordering enters the chain. One hidden state is still one activity;
 this file only reads what the model already learned.
 
 Training agreement is not a test
-────────────────────────────────
+--------------------------------
 A Markov chain built by counting always reproduces the average visits of the
 cases it was counted from; that agreement is an identity, so it checks the code
-and nothing else. The honest test is on cases the chain never saw, so this file
-also reports every number on FUTURE cases, meaning cases that begin only after
+and nothing else. The real test is on cases the chain never saw, so this file
+also reports every number on future cases, meaning cases that begin only after
 the cut.
 
 Future cases need one correction. The log is a recording with an end date, and a
@@ -65,13 +65,13 @@ Neither group is a set of cases known to have finished; the first had a full
 margin of observation and the second had the most of it. Where the strict group
 exists and agrees with the full future group, the end of the recording explains
 nothing. Where it cannot be formed at all, as on the whole system, the strict
-test is simply unavailable, and the gap between the full future group and the
-longest-watched quarter is reported as evidence CONSISTENT WITH truncation by
+test is unavailable, and the gap between the full future group and the
+longest-watched quarter is reported as evidence consistent with truncation by
 the end of the recording. It is not proof of truncation, and it is never process
 drift on the strength of these numbers alone.
 
 Usage
-─────
+-----
     python final_model/reward_layer.py
     python final_model/reward_layer.py --scope top3 learnable
 """

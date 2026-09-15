@@ -1,233 +1,163 @@
 # Event-based energy modelling with variant-first hidden Markov models
 
-Master's thesis experiment. One idea runs through the whole repository:
+Code for my master's thesis at the University of Passau. The question behind it:
+a facility meter records one energy total every 30 minutes, and an event log
+records which process activities happened and when. Can we recover how much
+energy each activity used, and attribute energy back to single events?
 
-> **One hidden state is one process activity.**
+The central modelling decision is that one hidden state is one process activity.
+The number of states is therefore fixed by the log, the transition matrix says
+which activity follows which, and the emissions describe the energy and timing of
+each activity.
 
-The number of states is therefore not a free choice. It is the number of
-activities. The transition matrix describes which activity follows which, and
-the Gaussian emission describes how much energy an activity uses. The daily
-building background belongs to the signal generator, not to the states.
+## Data
 
-## What is real and what is generated
+The event log is the BPI Challenge 2019 purchase-order log. From it the code
+uses case identifiers, activity names and timestamps. After removing 320 events
+with timestamps outside 2018 and 2019, it holds 1,595,603 events in 251,734
+cases and 42 activities.
 
-From the BPI Challenge 2019 purchase-order log: case identifiers, activity
-names, event timestamps, event order and process variants. 1,595,603 events
-after removing 320 timestamps outside 2018 and 2019, across 42 activities.
+The log contains no energy, so the energy signal is generated and its true costs
+are known. It follows my supervisor's generator:
 
-Generated, following my supervisor's generator: activity energy values, event
-durations, the daily background and its noise.
+- each activity has a fixed base cost;
+- each event gets a duration from a normal distribution with mean 180 seconds
+  and standard deviation 20, clipped to 120-240 seconds;
+- an event's energy is its base cost plus its duration times 0.01;
+- an event that crosses an interval boundary has its energy and its activity
+  count shared between the two intervals, in proportion to the time spent in
+  each;
+- the building background is a daily sine shape peaking at 14:00, multiplied by
+  a fresh random number between 80 and 90 in every interval;
+- the meter reports one total every 30 minutes.
 
-So this tests a method on real process structure against a known synthetic
-energy truth. It does not use measured facility energy and does not claim real
-energy savings.
+The random seeds are fixed: 42 for the durations and 123 for the background
+noise.
 
-## How the signal is built
+Before fitting, only the predictable part of the background (the daily shape
+times 85) is removed. The random part stays in the signal as noise.
 
-Each activity has a fixed base cost. Each event is given a duration drawn from a
-normal distribution with mean 180 seconds and standard deviation 20, clipped
-between 120 and 240. An event's energy is its base cost plus its duration times
-0.01. The building background is a sine peaking at 14:00, multiplied by a fresh
-random number between 80 and 90 in every interval. The meter reports one total
-every 30 minutes.
+## Method in short
 
-An event lasting about three minutes can cross a 30-minute boundary. Its energy
-**and** its activity count are then shared between the two intervals in
-proportion to the time spent in each, following my supervisor's generator. Both
-sides move together, so the measured signal and the count matrix always describe
-the same thing. `final_model/interval_convention_check.py` measures what the
-alternative would have cost.
-
-Before fitting, only the predictable part of the background is removed. The
-random multiplier stays in the signal as real noise.
-
-## How an event is placed on the timeline, and why
-
-An event lasts about three minutes; the meter reports every thirty. So an event
-can start just before one interval ends and finish in the next. There are three
-ways to handle that, and all three are measured in
-`final_model/interval_convention_check.py`.
-
-| placement | energy | activity count |
-|---|---|---|
-| whole event | charged to the starting interval | charged to the starting interval |
-| **both shared (this thesis)** | **split between the two intervals** | **split the same way** |
-| energy only | split between the two intervals | left whole in the starting interval |
-
-My supervisor's generator splits an event's cost by duration, and this thesis
-follows it. His evaluation code, separately, describes the event matrix as counts
-of events per interval, which is the third row. Measured on the same data, that
-third combination does not work:
-
-| scope | placement | OLS | this model | stranded intervals | stranded energy |
-|---|---|---:|---:|---:|---:|
-| top three | whole event | 0.000551 | 0.000700 | 0 | 0.00% |
-| top three | both shared | 0.001298 | 0.000969 | 0 | 0.00% |
-| top three | energy only | 7.923744 | 7.923744 | 434 | 7.95% |
-| whole system | whole event | 0.388156 | 0.351772 | 0 | 0.00% |
-| whole system | both shared | 0.492592 | 0.573062 | 0 | 0.00% |
-| whole system | energy only | 98.902825 | 96.347041 | 275 | 0.60% |
-
-The last two columns count intervals that hold event energy no counted activity
-can explain, and the share of all event energy stranded in them. They are
-measured on the event energy alone and never on the meter signal, because the
-meter signal also carries background noise and that is non-zero in nearly every
-interval.
-
-Splitting the energy while counting whole events strands 7.95 percent of all
-event energy on top three, in 434 intervals whose count row is empty, and 275
-such intervals on the whole system. No estimator can explain energy where nothing
-is recorded as happening, and both methods degrade by two to four orders of
-magnitude, equally. So the two sides of the regression must be built the same
-way. Splitting both is this thesis's decision, and the table is the reason.
-
-Note also that the first row is the easiest of the three for everyone. Easier is
-not better here: with every interval equally clean there is nothing for variance
-weighting to do, which is precisely the contribution being tested.
-
-## How activity costs are estimated
-
-Feasible generalized least squares on the interval totals. An interval can be
-noisy for two reasons, and the variance model has one term for each:
+Cost estimation. Feasible generalized least squares on the interval totals. The
+noise variance of an interval is modelled as
 
 ```text
 variance = a + b * (events in the interval) + c * (background shape) ** 2
 ```
 
-The three terms are learned from the training residuals by non-negative least
-squares. Nothing is read from the generator. The model recovers them well:
+and the three terms are learned from the training residuals by non-negative
+least squares. Ordinary least squares and ridge regression are the baselines.
 
-| scope | fixed term | per event | background |
-|---|---:|---:|---:|
-| top1 | 0.08813 | 0.05083 | 7.98211 |
-| top2 | 0.45174 | 0.02659 | 8.27408 |
-| top3 | 0.47511 | 0.02645 | 8.24892 |
-| top5 | 0.00000 | 0.06419 | 8.16737 |
-| whole system | 0.00000 | 0.08846 | 7.12207 |
+Decoding hidden activities. After a chronological cut at about 70 percent of the
+events, the activity labels of the held-out events are hidden. Three decoders
+name them: a no-transition control, a pooled Viterbi decoder, and a
+variant-first decoder that uses the complete paths seen in training and falls
+back to the pooled model when no path fits. A position-only rule serves as a
+baseline.
 
-The true values are 0 for the fixed term, 0.0400 per event and 8.33333 for the
-background.
+Reward layer. An absorbing Markov chain with an END state gives the expected
+energy of one complete case, split by activity.
 
-## Baum–Welch is implemented and switched off
+Scopes. Cases on the 1, 2, 3 and 5 most frequent variants, and the whole system.
+The whole system keeps 35 of the 42 activities, covering 99.661 percent of the
+events. Five SRM activities occur only together, in two groups at the same
+timestamps, and two activities never appear before the cut, so these seven
+costs cannot be learned.
 
-The log names the activity of every training event, so nothing about the hidden
-states is unknown while the rewards are learned, and the per-event observation
-has to be invented from each interval's leftover. Measured on all five scopes it
-loses accuracy on all five. `final_model/baum_welch_check.py` produces the
-table. It can be switched back on with `BAUM_WELCH_DEFAULT` or the `baum_welch`
-argument of `fit_pooled_hmm`.
+## Main results
 
-## Scope: 35 of 42 activities
+Activity cost error against the true costs, median over 30 noise draws:
 
-Five SRM activities always occur together in two groups, so their individual
-costs cannot be separated. Two more never appear before the chronological cut.
-Removing all seven costs 0.339% of the events and leaves a full-rank problem.
-Rank is measured from whole-event counts, because sharing an event across
-intervals separates always-together columns by a hair of random duration and
-would claim more than the data supports.
-
-## Results
-
-Activity-cost error, median over 30 independent noise draws. This is the number
-to quote, because on the whole system the difference between methods is smaller
-than the swing between draws.
-
-| scope | OLS | this model | reduction | wins |
+| scope | OLS | weighted estimator | lower by | draws won |
 |---|---:|---:|---:|---:|
-| top3 | 0.002710 | **0.001774** | 34.55% | 29/30 |
-| top5 | 0.035483 | **0.015670** | 55.84% | 30/30 |
-| whole system | 0.541584 | **0.449926** | 16.92% | 24/30 |
+| top three | 0.002710 | 0.001774 | 34.55% | 29 of 30 |
+| top five | 0.035483 | 0.015670 | 55.84% | 30 of 30 |
+| whole system | 0.541584 | 0.449926 | 16.92% | 24 of 30 |
 
-Hidden-activity attribution. Test activity names are removed and the decoder has
-only the meter and the process order it learned.
+Energy error per hidden event, main run:
 
-| scope | paths recognised | no transitions | variant-first | reduction |
+| scope | held-out events on paths seen in training | no-transition control | variant-first | lower by |
 |---|---:|---:|---:|---:|
-| top1 | 100.0% | 1.2537 | **0.1586** | 87.4% |
-| top2 | 100.0% | 1.5877 | **0.1681** | 89.4% |
-| top3 | 100.0% | 1.5772 | **0.1675** | 89.4% |
-| top5 | 100.0% | 6.6963 | **0.1977** | 97.0% |
-| whole system | 58.9% | 25.9710 | **19.0767** | 26.5% |
+| top one | 100.0% | 1.2537 | 0.1586 | 87.4% |
+| top two | 100.0% | 1.5877 | 0.1681 | 89.4% |
+| top three | 100.0% | 1.5772 | 0.1675 | 89.4% |
+| top five | 100.0% | 6.6963 | 0.1977 | 97.0% |
+| whole system | 58.9% | 25.9710 | 19.0767 | 26.5% |
 
-Reconstruction with known activities is a **tie**, about 4.01 for every method on
-the whole system. That is not a shortfall. The measured noise floor is 3.7540 and
-a perfect model given the true costs scores 4.0164, so every method is already at
-the ceiling. The remaining error is random background that nobody can predict.
+On the whole system the variant-first decoder names 48.67% of held-out
+activities correctly, against 43.20% for the position-only baseline, 28.93% for
+the control and 22.06% for the pooled decoder.
 
-## Limitations, stated openly
+Other findings:
 
-- Reconstruction is a tie **when the activities are known**, not a win. When
-  activities are hidden on the whole log, reconstruction is worse, see the point
-  below.
-- On the whole log, variant-first decoding improves attribution by 26% but makes
-  interval reconstruction about four times worse, because 41% of test cases
-  follow paths never seen in training and are forced onto the nearest known one.
-  This does not happen on any scope with full path coverage.
-- The whole-system cost advantage is small next to seed variation, so it is
-  quoted as a median over 30 seeds.
-- Energy, duration, background and noise are synthetic.
-- **An event's duration decides how it is split across two intervals, and those
-  durations are synthetic.** The real log has timestamps but no durations, so a
-  real analyst could not perform this split exactly. This is a controlled
-  assumption of the same kind as removing the known background shape.
-- "Whole system" means the 35 learnable activities, which is 99.661% of events,
-  not the literal 42-activity log.
-- Decoding is retrospective: case boundaries, event times and case lengths are
+- With known activities, rebuilding the meter is a tie. On the whole system the
+  weighted estimator reaches an RMSE of 4.0096, a model given the true costs
+  4.0164, and the background noise alone sets a floor of 3.7540.
+- The variance model finds the background term within two percent of its true
+  value (8.3333) on top two, top three and top five.
+- For top-three cases that began at least a full observation margin before the
+  log ends, the reward layer predicts the mean case energy within 0.118%. For
+  all cases starting after the cut it predicts too much, by 5.39% on top three
+  and 18.42% on the whole system, which is consistent with cases still running
+  when the log ends.
+- Keeping the five SRM activities as two merged groups recovers the two group
+  costs closely, but the median cost error of the other 35 activities rises
+  from 0.449926 to 0.519489, and it is worse in 24 of 30 draws.
+- Splitting an event's energy while counting it whole in its starting interval
+  leaves 7.95% of the event energy on top three in 434 intervals with no counted
+  activity. This is why counts and energy are split the same way.
+- Baum-Welch is implemented but switched off, because it raises the cost error
+  on all five scopes. It can be switched on with `BAUM_WELCH_DEFAULT` or the
+  `baum_welch` argument of `fit_pooled_hmm`.
+- Factorial composition, with separate costs per variant, has a higher cost
+  error than shared costs on all three scopes where it runs.
+
+## Limitations
+
+- Energy, durations, background and noise are generated; only the process data
+  is real.
+- The daily background shape is removed as known, and the generated durations
+  decide how an event is split between intervals. A real log has no durations,
+  so a real analysis would have to estimate both.
+- Decoding is retrospective: case membership, event times and case lengths are
   known. Test activity labels are used only for scoring.
-- The number of states was not selected by cross-validation, because a state is
-  an activity and the count is fixed. The proposal's dwell-time constraint does
-  not apply for the same reason.
-- Variants are computed directly from the log rather than in Fluxicon Disco.
+- On the whole system, 41.10% of held-out events belong to cases whose path was
+  never seen in training, and the meter rebuilt from variant-first paths is about
+  five times further off than with the pooled decoder (RMSE 304.85 against
+  61.16).
+- On the whole system the cost comparison depends on the noise draw, so it is
+  reported as a median over 30 draws.
 
 ## Files
 
 | file | purpose |
 |---|---|
-| `data_pipeline.py` | load the log, generate energy, build the signal and count matrix |
-| `event_state_hmm.py` | the model and all four research questions |
-| `plot_results.py` | the three main figures |
+| `data_pipeline.py` | loads the log, generates the energy, builds the meter series and count matrix |
+| `event_state_hmm.py` | the model, the decoders and the experiments for the four research questions |
+| `plot_results.py` | the overview, stress-test and composition figures |
 | `final_model/reward_layer.py` | expected energy of one complete case |
-| `final_model/per_activity_check.py` | the same result opened up activity by activity |
+| `final_model/per_activity_check.py` | the case energy split activity by activity |
 | `final_model/scope_progression.py` | why the whole system keeps 35 of 42 activities |
-| `final_model/merged_scope_check.py` | what merging the five co-occurring activities, instead of removing them, gains and costs |
-| `final_model/baum_welch_check.py` | measured evidence for switching Baum–Welch off |
-| `final_model/factorial_check.py` | RQ4 factorial composition |
-| `final_model/interval_convention_check.py` | what the interval convention costs |
-| `final_model/plot_reward.py`, `plot_per_activity.py` | figures for the two checks above |
-| `final_model/plot_pipeline.py` | the pipeline diagram, drawn from code |
+| `final_model/merged_scope_check.py` | merging the co-occurring SRM activities instead of removing them |
+| `final_model/baum_welch_check.py` | the Baum-Welch update switched on and off |
+| `final_model/factorial_check.py` | factorial composition, one set of costs per variant |
+| `final_model/interval_convention_check.py` | three ways of placing an event that crosses an interval boundary |
+| `final_model/thesis_facts.py` | descriptive numbers quoted in the thesis that no result table holds |
+| `final_model/plot_reward.py`, `plot_per_activity.py` | figures for the reward layer and the per-activity check |
+| `final_model/plot_pipeline.py` | the pipeline diagram |
 | `final_model/plot_state_example.py` | selected states and transitions of the whole-system model |
-| `final_model/plot_end_example.py` | the same states in the reward layer's chain, with the END state |
-| `final_model/thesis_facts.py` | every descriptive number quoted in the thesis that no result table holds |
-| `results_event_state/` | every CSV table and figure |
-| `images/` | the same figures, for the thesis |
+| `final_model/plot_end_example.py` | the same states with the END state of the reward layer |
+| `results_event_state/` | all result tables and figures |
+| `images/` | the figures used in the thesis |
 
-## History of this repository
+Every result figure is drawn from a saved table, so a figure and the numbers in
+the thesis come from the same file.
 
-This repository began as an exploration and became a single, verified experiment.
-The earlier files are not deleted from the project's history, only from its
-current state, and the commit `fd39855` is tagged so that the earlier work stays
-one click away.
+## Running the experiment
 
-What was there before: several successive versions of a Markov model built
-around energy regimes rather than activities, a set of generated signal folders
-for individual variants, and a number of one-off comparison scripts. That line of
-work answered a different modelling question, where a hidden state was an unknown
-energy level and the number of states had to be chosen. It was superseded by the
-decision that one hidden state is one process activity, which removes the state
-selection problem entirely and is the basis of everything here.
-
-What is here now: one data pipeline, one model, one plotting script, and thirteen
-small scripts under `final_model/`: seven answer a single question a reader
-might raise, five draw figures, and one collects the descriptive numbers the
-thesis quotes about the log, the signal and its examples. Every result table and every figure in
-`results_event_state/` is produced by those scripts, and every figure is drawn
-only from a saved table, so a figure can never disagree with a number.
-
-Not published here: the working notes written while the experiment was being
-built, and the LaTeX drafting folder. They are kept locally because they are
-about writing the thesis rather than about running the code.
-
-## Run everything
+Put `BPI_Challenge_2019.csv` next to the scripts, or set the environment variable
+`BPI2019_CSV` to its path. Then run, in this order:
 
 ```bash
 python3 -m pip install -r requirements.txt
@@ -249,5 +179,12 @@ python3 final_model/plot_state_example.py
 python3 final_model/plot_end_example.py
 ```
 
-Put `BPI_Challenge_2019.csv` beside the scripts, or set the `BPI2019_CSV`
-environment variable to its full path.
+`thesis_facts.py` has to run before `plot_results.py`, because the overview
+figure reads the floor of the attribution error from its output.
+
+## Earlier versions
+
+The repository started with a Markov model whose hidden states were unknown
+energy levels, so the number of states had to be chosen. That approach was
+replaced by one state per activity. The earlier code is kept in the Git history
+under the tag `proposal-model` (commit `fd39855`).

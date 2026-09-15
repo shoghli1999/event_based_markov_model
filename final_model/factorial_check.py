@@ -1,6 +1,6 @@
 """
 factorial_check.py
-──────────────────
+------------------
 RQ4 asks for additive or factorial composition. This measures the factorial one.
 
 Additive composition is what the decoder already does: many case-level chains
@@ -12,11 +12,11 @@ costs. The meter still sees the sum. This script builds that model and compares
 it with the shared model, where one cost per activity is used everywhere.
 
 Output
-──────
+------
     results_event_state/factorial_check.csv
 
 Usage
-─────
+-----
     python final_model/factorial_check.py
     python final_model/factorial_check.py --scope top2 top3
 """

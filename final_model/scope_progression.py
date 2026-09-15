@@ -1,10 +1,10 @@
 """
 scope_progression.py
-────────────────────
+--------------------
 Why the whole-system experiment reports 35 activities and not 42.
 
 The three scopes
-────────────────
+----------------
 42  every activity in the cleaned log. Five of them always occur together at
     the same timestamps, so their individual costs cannot be recovered. Two more
     activities never appear before the training cut, so their costs cannot be
@@ -19,7 +19,7 @@ The three scopes
 
     results_event_state/cost_precision.csv holds the supporting detail: those
     five activities are estimated about fifty times less precisely than the rest,
-    and two of them receive the identical estimate, which is simply their
+    and two of them receive the identical estimate, which is their
     average.
 
 39  the five co-occurring activities folded into their two groups. Nothing is
@@ -30,15 +30,14 @@ The three scopes
     Every remaining cost is individually recoverable. This costs 0.339% of the
     events.
 
-Reporting all three is the honest way to present the identifiability limit: it
-shows what was removed, why, and what it cost.
+Reporting all three shows what was removed, why, and what it cost.
 
 Output
-──────
+------
     results_event_state/scope_progression.csv
 
 Usage
-─────
+-----
     python final_model/scope_progression.py
 """
 from __future__ import annotations

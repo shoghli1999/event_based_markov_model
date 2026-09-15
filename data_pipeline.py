@@ -29,8 +29,8 @@ SINE_PEAK_HOUR = 14.0
 SINE_AMPLITUDE = 1.0
 SINE_SHIFT = 1.1
 # My supervisor multiplies the background shape by a fresh random number drawn
-# from this range in every interval, so the background is both large and
-# genuinely noisy rather than a smooth curve.
+# from this range in every interval, so the background is both large and noisy
+# rather than a smooth curve.
 BACKGROUND_RANGE = (80.0, 90.0)
 
 # Controlled choices made for this thesis.

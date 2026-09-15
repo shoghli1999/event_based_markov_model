@@ -1,10 +1,10 @@
 """
 per_activity_check.py
-─────────────────────
+---------------------
 The per-activity view that a total cannot hide.
 
 Why this exists
-───────────────
+---------------
 reward_layer.py predicts the energy of one complete case. That is a single
 total, and a total can be right while the parts inside it are wrong: swap the
 cost of two equally frequent activities and the total does not move at all.
@@ -24,11 +24,11 @@ This script opens the total up. For every activity it reports:
   cost_estimated    the learned cost, and how many training events supported it.
 
 Output
-──────
+------
     results_event_state/per_activity_check.csv
 
 Usage
-─────
+-----
     python final_model/per_activity_check.py
     python final_model/per_activity_check.py --scope top3 learnable
 """
