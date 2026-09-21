@@ -18,7 +18,7 @@ The three scopes
     the process.
 
     results_event_state/cost_precision.csv holds the supporting detail: those
-    five activities are estimated about fifty times less precisely than the rest,
+    five activities are estimated about eighty times less precisely than the rest,
     and two of them receive the identical estimate, which is their
     average.
 
