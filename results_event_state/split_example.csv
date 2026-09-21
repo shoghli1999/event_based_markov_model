@@ -1,0 +1,9 @@
+fact,value
+timeline_start,2018-01-01 03:30:00
+cut_time,2018-09-22 02:30:00
+recording_end,2019-01-18 14:34:00
+last_event,2019-12-05 23:59:00
+training_event_percent,70.01122503843868
+cases_completed_before_cut,131896
+cases_spanning_cut,57802
+cases_after_cut,62036

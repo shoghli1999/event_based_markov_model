@@ -148,6 +148,9 @@ Other findings:
 | `final_model/plot_pipeline.py` | the pipeline diagram |
 | `final_model/plot_state_example.py` | selected states and transitions of the whole-system model |
 | `final_model/plot_end_example.py` | the same states with the END state of the reward layer |
+| `final_model/plot_split_example.py` | the chronological split and the three kinds of case |
+| `final_model/plot_decoder_example.py` | the four decoding methods sketched on one case |
+| `final_model/plot_signal_example.py` | two days of the generated signal and its background |
 | `results_event_state/` | all result tables and figures |
 | `images/` | the figures used in the thesis |
 
@@ -177,6 +180,9 @@ python3 plot_results.py
 python3 final_model/plot_pipeline.py
 python3 final_model/plot_state_example.py
 python3 final_model/plot_end_example.py
+python3 final_model/plot_split_example.py
+python3 final_model/plot_decoder_example.py
+python3 final_model/plot_signal_example.py
 ```
 
 `thesis_facts.py` has to run before `plot_results.py`, because the overview

@@ -179,8 +179,94 @@ def plot_rq4() -> None:
     plt.close(figure)
 
 
+def plot_cost_draws() -> None:
+    """The thirty noise draws behind the activity cost comparison.
+
+    On the whole system the difference between the estimators is smaller than
+    the swing between draws, so the thesis reports medians and win counts rather
+    than one run. This figure shows the draws themselves: each box holds the
+    thirty cost errors of one estimator on one scope, and the win count says how
+    often the weighted estimator was the lower of the two within a draw.
+    """
+    table = pd.read_csv(RESULTS / "reward_estimator_seed_check.csv")
+    scopes = [scope for scope in SCOPE_LABELS if scope in set(table["scope"])]
+    figure, axis = plt.subplots(figsize=(9.5, 4.8))
+    data, positions, colours = [], [], []
+    for index, scope in enumerate(scopes):
+        part = table[table["scope"] == scope]
+        data += [part["ols_mean_cost_error"].to_numpy(),
+                 part["weighted_regression_mean_cost_error"].to_numpy()]
+        positions += [index - 0.18, index + 0.18]
+        colours += ["#5D7CA6", "#F28E2B"]
+        wins = int((part["weighted_regression_mean_cost_error"]
+                    < part["ols_mean_cost_error"]).sum())
+        axis.text(index, 0.97, f"weighted lower in {wins} of {len(part)} draws",
+                  transform=axis.get_xaxis_transform(), ha="center", va="top",
+                  fontsize=9, color="#333333")
+
+    boxes = axis.boxplot(data, positions=positions, widths=0.28, patch_artist=True,
+                         medianprops={"color": "black"}, flierprops={"markersize": 3})
+    for patch, colour in zip(boxes["boxes"], colours):
+        patch.set_facecolor(colour)
+        patch.set_alpha(0.75)
+    axis.set_xticks(range(len(scopes)), [SCOPE_LABELS[scope] for scope in scopes])
+    axis.set_yscale("log")
+    bottom, top = axis.get_ylim()
+    axis.set_ylim(bottom, top * 3.0)
+    axis.set_ylabel("Activity cost error over 30 noise draws (log scale)")
+    axis.set_title("Cost recovery draw by draw (lower is better)")
+    axis.grid(axis="y", alpha=0.25, which="both")
+    axis.legend(handles=[plt.Rectangle((0, 0), 1, 1, facecolor=c, alpha=0.75)
+                         for c in ["#5D7CA6", "#F28E2B"]],
+                labels=["Ordinary least squares", "Weighted estimator"],
+                frameon=False, fontsize=9, loc="lower right")
+    figure.tight_layout()
+    save(figure, "cost_draws.png")
+    plt.close(figure)
+
+
+def plot_correlation_costs() -> None:
+    """What compression does to the costs, and what it does to the meter.
+
+    The stress test squeezes every case into a shorter span. The costs of both
+    estimators degrade by orders of magnitude, while the meter rebuilt from
+    those costs with known activities hardly moves, which is the clearest case
+    in the thesis of a close fit hiding wrong costs.
+    """
+    table = pd.read_csv(RESULTS / "rq2_correlation.csv")
+    median = table.groupby("span_minutes").median(numeric_only=True).sort_index(ascending=False)
+    names = {10080.0: "7 days", 120.0: "2 hours", 30.0: "30 minutes", 0.0: "zero"}
+    labels = [names.get(span, f"{span:g} min") for span in median.index]
+
+    figure, axes = plt.subplots(1, 2, figsize=(12.5, 4.4))
+    grouped_bars(
+        axes[0],
+        labels,
+        [("Ordinary least squares", median["ols_mean_cost_error"], "#5D7CA6"),
+         ("Weighted estimator", median["weighted_regression_mean_cost_error"], "#F28E2B")],
+        "Activity cost error (log scale)",
+        log=True,
+    )
+    axes[0].set_title("The costs degrade as the cases are squeezed")
+    axes[0].legend(frameon=False, fontsize=9, loc="upper left")
+    grouped_bars(
+        axes[1],
+        labels,
+        [("Ordinary least squares", median["ols_known_x_test_rmse"], "#5D7CA6"),
+         ("Weighted estimator", median["weighted_regression_test_rmse"], "#F28E2B")],
+        "Held-out RMSE with known activities",
+    )
+    axes[1].set_ylim(3.0, 4.2)
+    axes[1].set_title("The rebuilt meter hardly moves")
+    figure.tight_layout()
+    save(figure, "correlation_costs.png")
+    plt.close(figure)
+
+
 if __name__ == "__main__":
     plot_main()
     plot_rq2()
     plot_rq4()
+    plot_cost_draws()
+    plot_correlation_costs()
     print(f"Saved figures to {RESULTS}")
