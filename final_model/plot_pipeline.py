@@ -8,6 +8,10 @@ scripts actually take. The bottom row holds the four things that are measured:
 the activity costs, the reconstruction of the held-out meter, the attribution of
 hidden events, and the energy of a complete case.
 
+The figure is drawn at the width it is printed at, so that its labels stay as
+readable on paper as the text around them; what each box does in detail belongs
+to the caption and to the sections that follow it.
+
 Output
 ------
     images/pipeline.png
@@ -28,22 +32,22 @@ from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 ROOT = Path(__file__).resolve().parent.parent
 REAL, MADE, MODEL, OUT = "#4477AA", "#EE7733", "#228833", "#AA3377"
 
-# title, subtitle, column, row, colour
+# title, column, row, colour
 BOXES = [
-    ("BPI Challenge 2019 log", "case, activity, timestamp\n1,595,603 events, 42 activities", 0, 6, REAL),
-    ("Synthetic energy", "base cost + 0.01 x duration\nfor every event", 1.5, 6, MADE),
-    ("Building background", "daily shape x uniform(80, 90),\nfresh in every interval", 3, 6, MADE),
-    ("Process variants and scopes", "top 1, 2, 3 and 5 variants and\nthe whole system of 35 activities", 0, 5, REAL),
-    ("Interval aggregation", "30-minute totals and counts, expected\nbackground removed; a crossing event\nis split, energy and count together", 1.5, 4, MODEL),
-    ("Chronological split", "cut after 70% of all events;\ntraining part fits the models,\nheld-out part is decoded and scored", 1.5, 3, MODEL),
-    ("Cost estimation", "weighted estimator,\nwith OLS and ridge as baselines", 0.5, 2, MODEL),
-    ("Event-state HMM", "one state per activity: start,\ntransitions, energy and timing", 2.5, 2, MODEL),
-    ("Decoding", "no-transition, pooled and variant-first,\nagainst a position-only baseline", 1.5, 1, MODEL),
-    ("Markov reward layer", "absorbing chain\nwith an END state", 3, 1, MODEL),
-    ("Activity costs", "error against\nthe true costs", 0, 0, OUT),
-    ("Reconstruction", "held-out meter rebuilt from\nknown or decoded activities", 1, 0, OUT),
-    ("Attribution", "activity and energy of\neach held-out event", 2, 0, OUT),
-    ("Energy of a complete case", "tested on cases\nnever seen", 3, 0, OUT),
+    ("BPI Challenge\n2019 log", 0, 6, REAL),
+    ("Synthetic\nenergy", 1.5, 6, MADE),
+    ("Building\nbackground", 3, 6, MADE),
+    ("Variants and\nscopes", 0, 5, REAL),
+    ("Interval\naggregation", 1.5, 4, MODEL),
+    ("Chronological\nsplit", 1.5, 3, MODEL),
+    ("Cost\nestimation", 0.5, 2, MODEL),
+    ("Event-state\nHMM", 2.5, 2, MODEL),
+    ("Decoding", 1.5, 1, MODEL),
+    ("Markov reward\nlayer", 3, 1, MODEL),
+    ("Activity\ncosts", 0, 0, OUT),
+    ("Rebuilding\nthe meter", 1, 0, OUT),
+    ("Attribution", 2, 0, OUT),
+    ("Energy of a\ncomplete case", 3, 0, OUT),
 ]
 
 # (source, target) by position in BOXES
@@ -59,7 +63,7 @@ ARROWS = [
     (9, 13),                        # energy of a complete case
 ]
 
-WIDTH, HEIGHT, GAP_X, GAP_Y = 3.6, 1.3, 4.2, 2.05
+WIDTH, HEIGHT, GAP_X, GAP_Y = 1.42, 0.78, 1.55, 1.2
 ROWS = max(row for *_, row, _ in BOXES)
 
 
@@ -76,50 +80,48 @@ def edges(source, target):
         side = WIDTH / 2 if x0 < x1 else -WIDTH / 2
         return (x0 + side, y0), (x1 - side, y1)
     # leave the bottom and enter the top, nudged sideways when the columns differ
-    lean = 0.0 if abs(x0 - x1) < 0.01 else (0.9 if x1 > x0 else -0.9)
+    lean = 0.0 if abs(x0 - x1) < 0.01 else (0.35 if x1 > x0 else -0.35)
     return (x0 + lean, y0 - HEIGHT / 2), (x1 - lean, y1 + HEIGHT / 2)
 
 
 def main():
     """Draw the pipeline figure and save it into images/."""
-    figure, axis = plt.subplots(figsize=(15, 12.5))
-    for title, subtitle, column, row, colour in BOXES:
+    figure, axis = plt.subplots(figsize=(5.58, 6.05))
+    for title, column, row, colour in BOXES:
         x, y = place(column, row)
         axis.add_patch(FancyBboxPatch(
             (x - WIDTH / 2, y - HEIGHT / 2), WIDTH, HEIGHT,
-            boxstyle="round,pad=0.07", linewidth=1.7,
+            boxstyle="round,pad=0.03", linewidth=1.5,
             edgecolor=colour, facecolor=colour + "18", zorder=3))
-        axis.text(x, y + 0.34, title, ha="center", va="center", zorder=4,
-                  fontsize=11.5, fontweight="bold", color=colour)
-        axis.text(x, y - 0.20, subtitle, ha="center", va="center", zorder=4,
-                  fontsize=8.6, color="#333333", linespacing=1.45)
+        axis.text(x, y, title, ha="center", va="center", zorder=4,
+                  fontsize=10, fontweight="bold", color=colour, linespacing=1.25)
 
     for source, target in ARROWS:
-        start, end = edges(BOXES[source][2:4], BOXES[target][2:4])
+        start, end = edges(BOXES[source][1:3], BOXES[target][1:3])
         axis.add_patch(FancyArrowPatch(
-            start, end, arrowstyle="-|>", mutation_scale=14, zorder=2,
-            linewidth=1.3, color="#777777", shrinkA=0, shrinkB=0))
+            start, end, arrowstyle="-|>", mutation_scale=11, zorder=2,
+            linewidth=1.1, color="#777777", shrinkA=0, shrinkB=0))
 
-    top = ROWS * GAP_Y + HEIGHT + 0.55
+    top = ROWS * GAP_Y + HEIGHT + 0.35
     for index, (colour, label) in enumerate([(REAL, "from the event log"),
                                              (MADE, "generated"),
                                              (MODEL, "processing and model"),
                                              (OUT, "what is measured")]):
-        x = index * GAP_X
+        y = top + 0.55 * (1 - index // 2)
+        x = 0.1 + 3.1 * (index % 2)
         axis.add_patch(FancyBboxPatch(
-            (x, top), 0.42, 0.28, boxstyle="round,pad=0.03", linewidth=1.5,
+            (x, y), 0.22, 0.2, boxstyle="round,pad=0.02", linewidth=1.4,
             edgecolor=colour, facecolor=colour + "18"))
-        axis.text(x + 0.65, top + 0.14, label, fontsize=9.5,
-                  va="center", color="#333333")
+        axis.text(x + 0.35, y + 0.1, label, fontsize=10, va="center", color="#333333")
 
-    axis.set_xlim(-0.5, 3 * GAP_X + WIDTH + 0.5)
-    axis.set_ylim(-0.6, top + 0.9)
+    axis.set_xlim(-0.2, 3 * GAP_X + WIDTH + 0.2)
+    axis.set_ylim(-0.3, top + 1.3)
     axis.axis("off")
     figure.tight_layout()
     for folder in ["images", "results_event_state"]:
         path = ROOT / folder / "pipeline.png"
         path.parent.mkdir(parents=True, exist_ok=True)
-        figure.savefig(path, dpi=200, bbox_inches="tight")
+        figure.savefig(path, dpi=220, bbox_inches="tight")
         print(f"saved -> {path.relative_to(ROOT)}")
     plt.close(figure)
 

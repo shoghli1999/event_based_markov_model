@@ -31,14 +31,15 @@ ROOT = Path(__file__).resolve().parent.parent
 INK, GREY, BLUE, DARK, ORANGE = "#1f2a44", "#8a8a8a", "#4477AA", "#2b4f7d", "#EE7733"
 
 SLOTS = 5
-SLOT_W, SLOT_H, SLOT_GAP = 1.7, 0.66, 0.26
-LEFT = 6.4
+SLOT_W, SLOT_H, SLOT_GAP = 1.82, 1.05, 0.22
 
 METHODS = [
-    ("Position-only baseline", "case length and position, no meter", GREY),
-    ("No-transition control", "energy and timing", BLUE),
-    ("Pooled decoder", "energy, timing and transitions", DARK),
-    ("Variant-first decoder", "energy, timing and path frequency", ORANGE),
+    ("Position-only baseline", "case length and position only",
+     "each event named on its own, without the meter", GREY),
+    ("No-transition control", "energy and timing",
+     "each event named on its own, from the meter and the timing", BLUE),
+    ("Pooled decoder", "energy, timing and transitions",
+     "built step by step from the transition table", DARK),
 ]
 # The two most frequent variants of the log, which differ only in the order of the
 # vendor invoice and the goods receipt.
@@ -50,71 +51,70 @@ PATHS = [
 ]
 
 
+def row_x(index):
+    """Left edge of the slot at this position in the case."""
+    return index * (SLOT_W + SLOT_GAP)
+
+
 def slot(axis, x, y, colour, text="", filled=True):
     """One held-out event, drawn as a box that waits for an activity name."""
     axis.add_patch(FancyBboxPatch(
         (x, y - SLOT_H / 2), SLOT_W, SLOT_H,
-        boxstyle="round,pad=0,rounding_size=0.08", linewidth=1.4,
+        boxstyle="round,pad=0,rounding_size=0.08", linewidth=1.3,
         edgecolor=colour, facecolor=colour + "20" if filled else "white", zorder=3))
     if text:
-        axis.text(x + SLOT_W / 2, y, text, ha="center", va="center", fontsize=7.6,
-                  color=INK, zorder=5, linespacing=1.2)
-
-
-def row_x(index):
-    """Left edge of the slot at this position in the case."""
-    return LEFT + index * (SLOT_W + SLOT_GAP)
+        axis.text(x + SLOT_W / 2, y, text, ha="center", va="center", fontsize=10,
+                  color=INK, zorder=5, linespacing=1.15)
 
 
 def arrow(axis, start, end, colour):
     """A short arrow between two slots."""
-    axis.add_patch(FancyArrowPatch(start, end, arrowstyle="-|>", mutation_scale=11,
-                                   lw=1.2, color=colour, shrinkA=0, shrinkB=0, zorder=4))
+    axis.add_patch(FancyArrowPatch(start, end, arrowstyle="-|>", mutation_scale=10,
+                                   lw=1.1, color=colour, shrinkA=0, shrinkB=0, zorder=4))
 
 
 def draw() -> plt.Figure:
-    """Draw the four decoders, one per block, on the same five events."""
-    figure, axis = plt.subplots(figsize=(12.4, 7.0))
-    axis.set_xlim(0, row_x(SLOTS - 1) + SLOT_W + 3.6)
-    axis.set_ylim(-2.15, 5.2)
+    """Draw the four decoders, one block each, on the same five events."""
+    right = row_x(SLOTS - 1) + SLOT_W
+    figure, axis = plt.subplots(figsize=(5.58, 5.4))
+    axis.set_xlim(-0.15, right + 0.15)
+    axis.set_ylim(-4.3, 12.7)
     axis.axis("off")
 
-    axis.text(LEFT, 4.85, "the five held-out events of one case, activity names hidden",
+    axis.text(0, 12.2, "one case of five held-out events, activity names hidden",
               fontsize=10, color="#333333")
     for index in range(SLOTS):
-        axis.text(row_x(index) + SLOT_W / 2, 4.45, f"event {index + 1}", fontsize=9,
+        axis.text(row_x(index) + SLOT_W / 2, 11.75, f"event {index + 1}", fontsize=10,
                   color="#555555", ha="center")
 
-    rows = [3.75, 2.55, 1.35]
-    notes = ["each event named on its own, without reading the meter",
-             "each event named on its own, from the meter and the timing",
-             "one step at a time, with the transition table"]
-    for (name, evidence, colour), y, note in zip(METHODS, rows, notes):
-        axis.text(0, y + 0.18, name, fontsize=10.5, color=INK, fontweight="bold")
-        axis.text(0, y - 0.24, evidence, fontsize=9, color="#555555")
+    top = 10.9
+    for name, evidence, note, colour in METHODS:
+        axis.text(0, top, name, fontsize=10.5, color=INK, fontweight="bold")
+        axis.text(0, top - 0.5, evidence, fontsize=10, color="#555555")
+        line = top - 1.45
         for index in range(SLOTS):
-            slot(axis, row_x(index), y, colour, "?")
+            slot(axis, row_x(index), line, colour, "?")
         if name.startswith("Pooled"):
             for index in range(SLOTS - 1):
-                arrow(axis, (row_x(index) + SLOT_W, y), (row_x(index + 1), y), colour)
-        axis.text(row_x(0), y - 0.58, note, fontsize=8.5, color="#555555")
+                arrow(axis, (row_x(index) + SLOT_W, line), (row_x(index + 1), line), colour)
+        axis.text(0, line - 0.95, note, fontsize=10, color="#555555")
+        top -= 3.0
 
-    name, evidence, colour = METHODS[3]
-    axis.text(0, 0.33, name, fontsize=10.5, color=INK, fontweight="bold")
-    axis.text(0, -0.09, evidence, fontsize=9, color="#555555")
-    for offset, (path, label) in enumerate(PATHS):
-        y = 0.15 - offset * 1.0
+    colour = ORANGE
+    axis.text(0, top, "Variant-first decoder", fontsize=10.5, color=INK, fontweight="bold")
+    axis.text(0, top - 0.5, "energy, timing and path frequency", fontsize=10, color="#555555")
+    line = top - 1.95
+    for path, label in PATHS:
         chosen = "chosen" in label
-        for index, activity in enumerate(path):
-            slot(axis, row_x(index), y, colour if chosen else "#c3c3c3", activity, chosen)
-        axis.text(row_x(SLOTS - 1) + SLOT_W + 0.25, y, label, fontsize=9,
-                  color=INK if chosen else "#777777", va="center",
+        axis.text(0, line + 0.85, label, fontsize=10,
+                  color=INK if chosen else "#777777",
                   fontweight="bold" if chosen else "normal")
-    axis.text(row_x(0), -1.38, "and the further training paths of the same length, not drawn",
-              fontsize=8.5, color="#777777")
-    axis.text(row_x(0), -1.85,
-              "one whole path for the case, scored against the meter, the timing and how "
-              "often the path occurred", fontsize=8.5, color="#555555")
+        for index, activity in enumerate(path):
+            slot(axis, row_x(index), line, colour if chosen else "#c3c3c3", activity, chosen)
+        line -= 2.15
+    axis.text(0, line + 0.55, "one whole path for the case, scored against the meter,\n"
+              "the timing and how often the path occurred",
+              fontsize=10, color="#555555", linespacing=1.25)
 
     figure.tight_layout()
     return figure

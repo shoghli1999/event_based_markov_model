@@ -59,28 +59,32 @@ def draw(table: pd.DataFrame) -> plt.Figure:
     """Draw the background above and the meter beside it below."""
     time = pd.to_datetime(table["timestamp"])
     realised = table["baseline"] + table["noise"]
-    figure, (upper, lower) = plt.subplots(2, 1, figsize=(12.2, 6.2), sharex=True)
+    figure, (upper, lower) = plt.subplots(2, 1, figsize=(5.58, 4.85), sharex=True)
 
     upper.plot(time, realised, color=NOISE, lw=1.2,
-               label="background as generated, shape times a fresh number between 80 and 90")
+               label="background as generated")
     upper.plot(time, table["baseline"], color=BACK, lw=1.6, linestyle="--",
-               label="predictable part removed before fitting, shape times 85")
+               label="predictable part, shape times 85")
     upper.set_ylim(0, 225)
     upper.set_ylabel("energy per half hour")
-    upper.legend(frameon=False, fontsize=9, loc="upper left")
+    upper.legend(frameon=False, fontsize=10, loc="lower left", ncol=2,
+                 bbox_to_anchor=(0, 1.0, 1, 0.12), mode="expand", borderaxespad=0.2,
+                 handlelength=1.4, handletextpad=0.4, columnspacing=0.8)
     upper.grid(alpha=0.25)
 
     lower.plot(time, table["signal"], color=METER, lw=1.2, label="meter total")
     lower.plot(time, table["baseline"], color=BACK, lw=1.6, linestyle="--",
                label="predictable background")
     lower.set_yscale("log")
-    lower.set_ylabel("energy per half hour, log scale")
-    lower.legend(frameon=False, fontsize=9, loc="upper left")
+    lower.set_ylabel("energy per half hour (log)")
+    lower.legend(frameon=False, fontsize=10, loc="lower left", ncol=2,
+                 bbox_to_anchor=(0, 1.0, 1, 0.12), mode="expand", borderaxespad=0.2,
+                 handlelength=1.4, handletextpad=0.4, columnspacing=0.8)
     lower.grid(alpha=0.25, which="both")
 
-    lower.xaxis.set_major_locator(mdates.HourLocator(interval=6))
+    lower.xaxis.set_major_locator(mdates.HourLocator(interval=12))
     lower.xaxis.set_major_formatter(mdates.DateFormatter("%d %b\n%H:%M"))
-    lower.tick_params(axis="x", labelsize=9)
+    lower.tick_params(axis="x", labelsize=10)
     figure.tight_layout()
     return figure
 

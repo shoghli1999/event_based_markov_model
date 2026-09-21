@@ -80,59 +80,67 @@ def probability_table() -> pd.DataFrame:
 
 
 def draw(table: pd.DataFrame) -> plt.Figure:
-    """Draw the states left to right and END below them, read from the saved table."""
+    """Draw the chain from top to bottom with the END state below it."""
     p = {(row["from"], row["to"]): row["probability"] for _, row in table.iterrows()}
-    x = {state: 3.2 * position for position, state in enumerate(STATES)}
-    width, height, gap = 2.3, 1.0, 0.07
-    top, bottom = 1.0, -1.6
     ink, blue, grey, red = "#1f2a44", "#2b6cb0", "#4b5563", "#9b2c2c"
+    box_left, box_right, box_h, gap = 0.6, 6.4, 0.86, 0.9
+    middle = (box_left + box_right) / 2
 
-    figure, axis = plt.subplots(figsize=(13.5, 4.8))
-    axis.set_xlim(-2.3, 14.2)
-    axis.set_ylim(-2.3, 2.1)
+    figure, axis = plt.subplots(figsize=(5.58, 6.1))
+    axis.set_xlim(0, 10)
+    top = 1.6 + (len(STATES) - 1) * (box_h + gap) + box_h
+    axis.set_ylim(-0.2, top + 1.5)
     axis.axis("off")
-    axis.set_title("Selected states with the END state", fontsize=13, fontweight="bold",
-                   color=ink, loc="left")
 
-    def box(cx, cy, box_width, text, face, edge):
-        axis.add_patch(FancyBboxPatch(
-            (cx - box_width / 2, cy - height / 2), box_width, height,
-            boxstyle="round,pad=0,rounding_size=0.22",
-            facecolor=face, edgecolor=edge, lw=1.8, zorder=3))
-        axis.text(cx, cy, text, ha="center", va="center", fontsize=10.5,
-                  fontweight="bold", color=ink, zorder=5, linespacing=1.25)
+    def centre(index):
+        return top - box_h / 2 - index * (box_h + gap)
 
-    def label(px, py, value):
-        # A step into END that almost never happens would round to 0.000.
+    axis.plot([middle], [top + 1.05], "o", ms=9, color=ink)
+    axis.text(middle + 0.25, top + 1.05, "start", fontsize=10, color=ink, va="center")
+    axis.add_patch(FancyArrowPatch((middle, top + 0.92), (middle, centre(0) + box_h / 2 + 0.06),
+                                   arrowstyle="-|>", mutation_scale=14, lw=1.5, color=grey,
+                                   shrinkA=0, shrinkB=0))
+    axis.text(middle + 0.25, top + 0.45, f"{p[('start', STATES[0])]:.3f}", fontsize=10,
+              color=ink, va="center")
+
+    end_y = centre(len(STATES) - 1) - box_h - 0.75
+    for index, state in enumerate(STATES):
+        y = centre(index)
+        axis.add_patch(FancyBboxPatch((box_left, y - box_h / 2), box_right - box_left, box_h,
+                                      boxstyle="round,pad=0,rounding_size=0.12",
+                                      facecolor="#eef4fb", edgecolor=blue, lw=1.6, zorder=3))
+        axis.text(middle, y, state, ha="center", va="center", fontsize=10.5, color=ink, zorder=5)
+        if index < len(STATES) - 1:
+            below = centre(index + 1)
+            axis.add_patch(FancyArrowPatch((middle, y - box_h / 2 - 0.06),
+                                           (middle, below + box_h / 2 + 0.06),
+                                           arrowstyle="-|>", mutation_scale=14, lw=1.5,
+                                           color=grey, shrinkA=0, shrinkB=0, zorder=4))
+            axis.text(middle + 0.25, (y + below) / 2,
+                      f"{p[(state, STATES[index + 1])]:.3f}", fontsize=10, color=ink, va="center")
+        # every activity can also end the case
+        value = p[(state, "END")]
         text = f"{value:.3f}" if value >= 0.0005 else "<0.001"
-        axis.text(px, py, text, ha="center", va="center", fontsize=10, color=ink,
-                  bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none"), zorder=6)
+        if index < len(STATES) - 1:
+            axis.add_patch(FancyArrowPatch((box_right + 0.05, y), (box_right - 1.4, end_y + 0.5),
+                                           arrowstyle="-|>", mutation_scale=11, lw=1.2, color=red,
+                                           shrinkA=0, shrinkB=0, zorder=2,
+                                           connectionstyle="arc3,rad=-0.35"))
+            axis.text(box_right + 0.25, y, text, fontsize=10, color=red, va="center",
+                      zorder=6, bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.0})
+        else:
+            axis.text(middle + 0.25, (y + end_y) / 2, text, fontsize=10, color=red,
+                      va="center", zorder=6,
+                      bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.0})
 
-    def arrow(start, end, color=grey):
-        axis.add_patch(FancyArrowPatch(
-            start, end, arrowstyle="-|>", mutation_scale=17, lw=1.7, color=color,
-            shrinkA=0, shrinkB=0, zorder=4))
-
-    for state in STATES:
-        words = state.split(" ")
-        middle = (len(words) + 1) // 2 if len(words) > 2 else len(words)
-        text = " ".join(words[:middle]) + ("\n" + " ".join(words[middle:]) if words[middle:] else "")
-        box(x[state], top, width, text, "#eef4fb", blue)
-
-    for a, b in zip(STATES[:-1], STATES[1:]):
-        arrow((x[a] + width / 2 + gap, top), (x[b] - width / 2 - gap, top))
-        label((x[a] + x[b]) / 2, top + 0.24, p[(a, b)])
-
-    box(x[STATES[2]], bottom, x[STATES[-1]] - x[STATES[0]] + width, "END", "#fbeeee", red)
-    for state in STATES:
-        arrow((x[state], top - height / 2 - gap), (x[state], bottom + height / 2 + gap), red)
-        label(x[state], (top + bottom) / 2, p[(state, "END")])
-
-    first = STATES[0]
-    axis.plot([-1.95], [top], "o", ms=11, color=ink, zorder=5)
-    arrow((-1.82, top), (x[first] - width / 2 - gap, top))
-    axis.text(-1.95, top + 0.34, "start", ha="center", fontsize=10, color=ink)
-    label((-1.82 + x[first] - width / 2) / 2, top + 0.24, p[("start", first)])
+    axis.add_patch(FancyBboxPatch((box_left + 1.4, end_y - box_h / 2), 3.0, box_h,
+                                  boxstyle="round,pad=0,rounding_size=0.12",
+                                  facecolor="#fbeeee", edgecolor=red, lw=1.6, zorder=3))
+    axis.text(box_left + 2.9, end_y, "END", ha="center", va="center", fontsize=11,
+              fontweight="bold", color=ink, zorder=5)
+    axis.add_patch(FancyArrowPatch((middle, centre(len(STATES) - 1) - box_h / 2 - 0.06),
+                                   (middle, end_y + box_h / 2 + 0.06), arrowstyle="-|>",
+                                   mutation_scale=14, lw=1.5, color=red, shrinkA=0, shrinkB=0))
     figure.tight_layout()
     return figure
 
@@ -145,7 +153,7 @@ def main() -> None:
     for folder in ["images", "results_event_state"]:
         path = ROOT / folder / "end_example.png"
         path.parent.mkdir(parents=True, exist_ok=True)
-        figure.savefig(path, dpi=200, bbox_inches="tight")
+        figure.savefig(path, dpi=220, bbox_inches="tight")
         print(f"saved -> {path.relative_to(ROOT)}")
     print(f"saved -> {TABLE.relative_to(ROOT)}")
 

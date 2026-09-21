@@ -77,48 +77,60 @@ def draw(table: pd.DataFrame) -> plt.Figure:
     counts = {name: f"{int(float(value[name])):,}" for name in
               ["cases_completed_before_cut", "cases_spanning_cut", "cases_after_cut"]}
 
-    figure, axis = plt.subplots(figsize=(12.5, 4.6))
+    figure, axis = plt.subplots(figsize=(5.58, 4.15))
     left, right = mdates.date2num(start), mdates.date2num(end)
     middle = mdates.date2num(cut)
     axis.set_xlim(left - 10, right + 10)
-    axis.set_ylim(0.1, 4.3)
+    axis.set_ylim(0.0, 4.0)
     axis.get_yaxis().set_visible(False)
     for side in ["left", "right", "top"]:
         axis.spines[side].set_visible(False)
 
     axis.axvspan(left, middle, color=TRAIN, alpha=0.09)
     axis.axvspan(middle, right, color=TEST, alpha=0.09)
-    axis.axvline(middle, color=CUT, lw=2.0)
-    axis.text(middle - 6, 4.12, f"cut after {share:.2f}% of the events  ", color=CUT,
+    axis.axvline(middle, color=CUT, lw=1.8)
+    axis.text(middle - 8, 3.86, f"cut after {share:.2f}% of the events ", color=CUT,
               fontsize=10, ha="right", va="center")
-    axis.text((left + middle) / 2, 3.72, "training period", color=TRAIN, fontsize=11,
+    axis.text((left + middle) / 2, 3.45, "training", color=TRAIN, fontsize=11,
               ha="center", fontweight="bold")
-    axis.text((middle + right) / 2, 3.72, "test period", color=TEST, fontsize=11,
+    axis.text((middle + right) / 2, 3.45, "test", color=TEST, fontsize=11,
               ha="center", fontweight="bold")
 
-    def case(y, begins, finishes, colour, title, note, count):
+    labels = []
+
+    def case(y, begins, finishes, colour, title, note):
         x0, x1 = mdates.date2num(begins), mdates.date2num(finishes)
-        axis.add_patch(Rectangle((x0, y - 0.09), x1 - x0, 0.18, facecolor=colour,
+        axis.add_patch(Rectangle((x0, y - 0.08), x1 - x0, 0.16, facecolor=colour,
                                  edgecolor=colour, zorder=3))
-        axis.text(x0, y + 0.26, f"{title} ({count} cases)", fontsize=10.5, color=INK,
-                  fontweight="bold")
-        axis.text(x0, y - 0.36, note, fontsize=9.5, color="#333333")
+        # The title and the note belong to the bar below and above them, so they
+        # start where the bar starts, and swing to its right end when a line
+        # would otherwise run past the timeline.
+        labels.append((axis.text(x0, y + 0.24, title, fontsize=10, color=INK,
+                                 fontweight="bold"), x1))
+        labels.append((axis.text(x0, y - 0.46, note, fontsize=10, color="#333333",
+                                 linespacing=1.25), x1))
 
     day = pd.Timedelta(days=1)
-    case(3.0, start + 20 * day, cut - 55 * day, TRAIN,
-         "completed before the cut", "supplies the transition and timing parameters, the "
-         "training paths and the reward chain",
-         counts["cases_completed_before_cut"])
-    case(1.9, cut - 70 * day, cut + 45 * day, SPAN,
-         "spanning the cut", "earlier events enter the cost estimation, later events are decoded",
-         counts["cases_spanning_cut"])
-    case(0.8, cut + 20 * day, end - 12 * day, TEST,
-         "beginning after the cut", "decoded, and used for the reward-layer test",
-         counts["cases_after_cut"])
+    case(2.85, start + 20 * day, cut - 55 * day, TRAIN,
+         f"completed before the cut, {counts['cases_completed_before_cut']} cases",
+         "transition and timing parameters,\ntraining paths, reward chain")
+    case(1.75, cut - 70 * day, cut + 45 * day, SPAN,
+         f"spanning the cut, {counts['cases_spanning_cut']} cases",
+         "earlier events in the costs,\nlater events decoded")
+    case(0.65, cut + 20 * day, end - 12 * day, TEST,
+         f"beginning after the cut, {counts['cases_after_cut']} cases",
+         "decoded, and used for the\nreward-layer test")
 
-    axis.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+    figure.canvas.draw()
+    inside = axis.get_window_extent()
+    for label, end_of_bar in labels:
+        if label.get_window_extent().x1 > inside.x1:
+            label.set_x(end_of_bar)
+            label.set_horizontalalignment("right")
+
+    axis.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
     axis.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
-    axis.tick_params(axis="x", labelsize=9.5, colors="#333333")
+    axis.tick_params(axis="x", labelsize=10, colors="#333333")
     figure.tight_layout()
     return figure
 
@@ -131,7 +143,7 @@ def main() -> None:
     for folder in ["images", "results_event_state"]:
         path = ROOT / folder / "split_example.png"
         path.parent.mkdir(parents=True, exist_ok=True)
-        figure.savefig(path, dpi=200, bbox_inches="tight")
+        figure.savefig(path, dpi=220, bbox_inches="tight")
         print(f"saved -> {path.relative_to(ROOT)}")
     print(f"saved -> {TABLE.relative_to(ROOT)}")
 

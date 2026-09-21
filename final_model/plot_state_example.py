@@ -70,61 +70,46 @@ def probability_table() -> pd.DataFrame:
 
 
 def draw(table: pd.DataFrame) -> plt.Figure:
-    """Draw the states left to right with their probabilities, read from the saved table."""
+    """Draw the states as a chain read from top to bottom, from the saved table."""
     p = {(row["from"], row["to"]): row["probability"] for _, row in table.iterrows()}
-    x = {state: 3.2 * position for position, state in enumerate(STATES)}
-    width, height, gap = 2.3, 1.0, 0.07
     ink, blue, grey = "#1f2a44", "#2b6cb0", "#4b5563"
+    box_left, box_right, box_h, gap = 1.1, 7.6, 0.86, 0.85
 
-    figure, axis = plt.subplots(figsize=(13.5, 4.8))
-    axis.set_xlim(-2.3, 14.2)
-    axis.set_ylim(-2.2, 2.3)
+    figure, axis = plt.subplots(figsize=(5.58, 4.95))
+    axis.set_xlim(0, 10)
+    top = 0.6 + (len(STATES) - 1) * (box_h + gap) + box_h
+    axis.set_ylim(0.3, top + 1.5)
     axis.axis("off")
-    axis.set_title("Selected states and transitions", fontsize=13, fontweight="bold",
-                   color=ink, loc="left")
 
-    for state in STATES:
-        axis.add_patch(FancyBboxPatch(
-            (x[state] - width / 2, -height / 2), width, height,
-            boxstyle="round,pad=0,rounding_size=0.22",
-            facecolor="#eef4fb", edgecolor=blue, lw=1.8, zorder=3))
-        words = state.split(" ")
-        middle = (len(words) + 1) // 2 if len(words) > 2 else len(words)
-        text = " ".join(words[:middle]) + ("\n" + " ".join(words[middle:]) if words[middle:] else "")
-        axis.text(x[state], 0, text, ha="center", va="center", fontsize=10.5,
-                  fontweight="bold", color=ink, zorder=5, linespacing=1.25)
+    def centre(index):
+        return top - box_h / 2 - index * (box_h + gap)
 
-    def label(px, py, value):
-        axis.text(px, py, f"{value:.3f}", ha="center", va="center", fontsize=10, color=ink,
-                  bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none"), zorder=6)
+    axis.plot([(box_left + box_right) / 2], [top + 1.05], "o", ms=9, color=ink)
+    axis.text((box_left + box_right) / 2 + 0.25, top + 1.05, "start", fontsize=10,
+              color=ink, va="center")
+    axis.add_patch(FancyArrowPatch(((box_left + box_right) / 2, top + 0.92),
+                                   ((box_left + box_right) / 2, centre(0) + box_h / 2 + 0.06),
+                                   arrowstyle="-|>", mutation_scale=14, lw=1.5, color=grey,
+                                   shrinkA=0, shrinkB=0))
+    axis.text((box_left + box_right) / 2 + 0.25, top + 0.45,
+              f"{p[('start', STATES[0])]:.3f}", fontsize=10, color=ink, va="center")
 
-    def arrow(start, end, rad=0.0):
-        axis.add_patch(FancyArrowPatch(
-            start, end, connectionstyle=f"arc3,rad={rad}", arrowstyle="-|>",
-            mutation_scale=17, lw=1.7, color=grey, shrinkA=0, shrinkB=0, zorder=4))
+    for index, state in enumerate(STATES):
+        y = centre(index)
+        axis.add_patch(FancyBboxPatch((box_left, y - box_h / 2), box_right - box_left, box_h,
+                                      boxstyle="round,pad=0,rounding_size=0.12",
+                                      facecolor="#eef4fb", edgecolor=blue, lw=1.6, zorder=3))
+        axis.text((box_left + box_right) / 2, y, state, ha="center", va="center",
+                  fontsize=10.5, color=ink, zorder=5)
+        if index < len(STATES) - 1:
+            below = centre(index + 1)
+            x = (box_left + box_right) / 2
+            axis.add_patch(FancyArrowPatch((x, y - box_h / 2 - 0.06), (x, below + box_h / 2 + 0.06),
+                                           arrowstyle="-|>", mutation_scale=14, lw=1.5,
+                                           color=grey, shrinkA=0, shrinkB=0, zorder=4))
+            axis.text(x + 0.25, (y + below) / 2, f"{p[(state, STATES[index + 1])]:.3f}",
+                      fontsize=10, color=ink, va="center")
 
-    def straight(a, b):
-        arrow((x[a] + width / 2 + gap, 0), (x[b] - width / 2 - gap, 0))
-        label((x[a] + x[b]) / 2, 0.24, p[(a, b)])
-
-    def arc(a, xa, b, xb, rad, above):
-        y = (height / 2 + gap) if above else -(height / 2 + gap)
-        arrow((xa, y), (xb, y), rad)
-        apex = abs(rad) * abs(xb - xa) / 2
-        label((xa + xb) / 2, y + (apex if above else -apex), p[(a, b)])
-
-    c, v, r, i, l = STATES
-    for a, b in [(c, v), (v, r), (r, i), (i, l)]:
-        straight(a, b)
-    arc(v, x[v], i, x[i], rad=-0.24, above=True)
-    arc(c, x[c], r, x[r] + 0.35, rad=0.34, above=False)
-    arc(r, x[r] - 0.55, v, x[v] + 0.55, rad=-0.30, above=False)
-    arc(l, x[l] - 0.55, i, x[i] + 0.55, rad=-0.30, above=False)
-
-    axis.plot([-1.95], [0], "o", ms=11, color=ink, zorder=5)
-    arrow((-1.82, 0), (x[c] - width / 2 - gap, 0))
-    axis.text(-1.95, 0.34, "start", ha="center", fontsize=10, color=ink)
-    label((-1.82 + x[c] - width / 2) / 2, 0.24, p[("start", c)])
     figure.tight_layout()
     return figure
 
@@ -137,7 +122,7 @@ def main() -> None:
     for folder in ["images", "results_event_state"]:
         path = ROOT / folder / "state_example.png"
         path.parent.mkdir(parents=True, exist_ok=True)
-        figure.savefig(path, dpi=200, bbox_inches="tight")
+        figure.savefig(path, dpi=220, bbox_inches="tight")
         print(f"saved -> {path.relative_to(ROOT)}")
     print(f"saved -> {TABLE.relative_to(ROOT)}")
 

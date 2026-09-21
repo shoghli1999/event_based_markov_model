@@ -47,7 +47,7 @@ GROUPS = [
 def main():
     """Draw the reward-layer figure from the saved table."""
     table = pd.read_csv(OUT_DIR / "reward_layer.csv").set_index("scope")
-    figure, axis = plt.subplots(figsize=(8, 4.4))
+    figure, axis = plt.subplots(figsize=(5.58, 3.8))
     width = 0.26
 
     for index, (name, column, colour) in enumerate(GROUPS):
@@ -57,26 +57,27 @@ def main():
             x = position + (index - (len(GROUPS) - 1) / 2) * width
             if np.isnan(measured):
                 axis.text(x, 0.4, "none\nqualify", ha="center", va="bottom",
-                          fontsize=8, color="dimgray")
+                          fontsize=10, color="dimgray")
                 continue
             value = 100.0 * (predicted - measured) / measured
             axis.bar(x, value, width, color=colour, label=name if position == 0 else None)
             axis.text(x, value + (0.3 if value >= 0 else -0.3), f"{value:+.2f}",
-                      ha="center", va="bottom" if value >= 0 else "top", fontsize=8.5)
+                      ha="center", va="bottom" if value >= 0 else "top", fontsize=10)
 
     axis.axhline(0, color="black", linewidth=0.9)
     axis.set_xticks(range(len(SCOPES)), [label for _, label in SCOPES])
     axis.set_xlim(-0.5, len(SCOPES) - 0.5)
     axis.set_ylim(-3, 21)
     axis.set_ylabel("Prediction above measured energy (%)")
-    axis.set_title("How far the predicted energy of a case lies from the measured one")
+    axis.set_title("How far the predicted energy of a case\n"
+                   "lies from the measured one", fontsize=11)
     axis.grid(axis="y", alpha=0.25)
-    axis.legend(frameon=False, fontsize=9, loc="upper left")
+    axis.legend(frameon=False, fontsize=10, loc="upper left")
     figure.tight_layout()
     for folder in [OUT_DIR, ROOT / "images"]:
         path = folder / "reward_layer.png"
         path.parent.mkdir(parents=True, exist_ok=True)
-        figure.savefig(path, dpi=220)
+        figure.savefig(path, dpi=220, bbox_inches="tight")
         print(f"saved -> {path.relative_to(ROOT)}")
     plt.close(figure)
 
