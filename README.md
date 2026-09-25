@@ -1,14 +1,33 @@
 # Event-based energy modelling with variant-first hidden Markov models
 
-Code for my master's thesis at the University of Passau. The question behind it:
-a facility meter records one energy total every 30 minutes, and an event log
-records which process activities happened and when. Can we recover how much
-energy each activity used, and attribute energy back to single events?
+Code for my master's thesis at the University of Passau, submitted on 23 September
+2026: *Event-Based Energy Modelling with Variant-First Hidden Markov Models*. It was
+written at the Chair of Distributed Information Systems, supervised by Manuel Lehner
+and examined by Prof. Dr. Harald Kosch and Prof. Dr. Michael Granitzer. It builds on
+the event-based energy modelling framework of Lehner (Athens Journal of Sciences
+12(4), 2025, doi:10.30958/ajs.12-4-4).
+
+The question behind it: a facility meter records one energy total every 30 minutes,
+and an event log records which process activities happened and when. Can we recover
+how much energy each activity used, and attribute energy back to single events?
 
 The central modelling decision is that one hidden state is one process activity.
 The number of states is therefore fixed by the log, the transition matrix says
 which activity follows which, and the emissions describe the energy and timing of
 each activity.
+
+## Main results
+
+The result tables are in `results_event_state/`.
+
+- Over 30 noise draws, the weighted estimator lowered the median activity-cost
+  error of OLS by 34.55% on the top three variants, 55.84% on the top five and
+  16.92% on the whole system.
+- The variant-first decoder named at least 99.92% of hidden activities correctly
+  on the four frequent-variant scopes. On the whole system it was the best of the
+  four methods, with an energy error per event 26.5% below a matched control.
+- The Markov reward layer predicted the energy of a complete case within 0.118%
+  for top-three cases that had time to finish.
 
 ## Data
 
@@ -194,3 +213,8 @@ The repository started with a Markov model whose hidden states were unknown
 energy levels, so the number of states had to be chosen. That approach was
 replaced by one state per activity. The earlier code is kept in the Git history
 under the tag `proposal-model` (commit `fd39855`).
+
+## Citation
+
+Shoghli, S. (2026). *Event-Based Energy Modelling with Variant-First Hidden Markov
+Models*. Master's thesis, University of Passau.
