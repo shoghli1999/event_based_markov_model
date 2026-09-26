@@ -110,13 +110,7 @@ def _csv_path() -> Path:
     configured = os.environ.get("BPI2019_CSV")
     if configured:
         candidates.append(Path(configured))
-    candidates.extend([
-        ROOT / "BPI_Challenge_2019.csv",
-        Path(
-            "/Users/shirin/Documents/shirin/passau/thesis/code/"
-            "BPI_Challenge_2019/BPI_Challenge_2019.csv"
-        ),
-    ])
+    candidates.append(ROOT / "BPI_Challenge_2019.csv")
     for candidate in candidates:
         if candidate.exists():
             return candidate

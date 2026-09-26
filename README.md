@@ -16,7 +16,7 @@ The number of states is therefore fixed by the log, the transition matrix says
 which activity follows which, and the emissions describe the energy and timing of
 each activity.
 
-## Main results
+## Summary
 
 The result tables are in `results_event_state/`.
 
@@ -31,8 +31,10 @@ The result tables are in `results_event_state/`.
 
 ## Data
 
-The event log is the BPI Challenge 2019 purchase-order log. From it the code
-uses case identifiers, activity names and timestamps. After removing 320 events
+The event log is the BPI Challenge 2019 purchase-order log, published on
+[4TU.ResearchData](https://data.4tu.nl/articles/dataset/BPI_Challenge_2019/12715853).
+It is not included here because of its size. From it the code uses case
+identifiers, activity names and timestamps. After removing 320 events
 with timestamps outside 2018 and 2019, it holds 1,595,603 events in 251,734
 cases and 42 activities.
 
@@ -179,7 +181,8 @@ the thesis come from the same file.
 ## Running the experiment
 
 Put `BPI_Challenge_2019.csv` next to the scripts, or set the environment variable
-`BPI2019_CSV` to its path. Then run, in this order:
+`BPI2019_CSV` to its path. The code reads the columns `case concept:name`,
+`event concept:name` and `event time:timestamp` (cp1252 encoding). Then run, in this order:
 
 ```bash
 python3 -m pip install -r requirements.txt
