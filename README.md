@@ -60,6 +60,8 @@ times 85) is removed. The random part stays in the signal as noise.
 
 ## Method in short
 
+![From the event log and the generated energy to the four results](images/pipeline.png)
+
 Cost estimation. Feasible generalized least squares on the interval totals. The
 noise variance of an interval is modelled as
 
@@ -105,6 +107,8 @@ Energy error per hidden event, main run:
 | top three | 100.0% | 1.5772 | 0.1675 | 89.4% |
 | top five | 100.0% | 6.6963 | 0.1977 | 97.0% |
 | whole system | 58.9% | 25.9710 | 19.0767 | 26.5% |
+
+![Attribution error and activities named correctly per scope and method](images/rq1_rq3_overview.png)
 
 On the whole system the variant-first decoder names 48.67% of held-out
 activities correctly, against 43.20% for the position-only baseline, 28.93% for
